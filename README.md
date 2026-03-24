@@ -1,29 +1,192 @@
-# Create T3 App
+# Clothing Marketplace — Setup Guide
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+## Stack
+- **Next.js 14** (App Router) — frontend + backend in one
+- **Supabase** — PostgreSQL + Auth + Storage + Realtime
+- **Upstash Redis** — rate limiting
+- **Vercel** — deployment
+- **WhatsApp Business Cloud API** — order notifications
 
-## What's next? How do I make an app with this?
+---
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+## 1. Clone & install
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+```bash
+git clone <your-repo>
+cd clothing-marketplace
+npm install
+```
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+---
 
-## Learn More
+## 2. Supabase setup
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+1. Create a project at [supabase.com](https://supabase.com)
+2. Go to **SQL Editor** and run:
+   - `database-schema.md` — all tables, indexes, RLS policies
+   - `supabase-triggers.sql` — profile trigger, decrement_stock, updated_at
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+3. Generate TypeScript types:
+```bash
+npx supabase login
+npm run db:types
+```
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+---
 
-## How do I deploy this?
+## 3. Environment variables
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+```bash
+cp .env.example .env.local
+```
+
+Fill in all values from:
+- Supabase dashboard → Project Settings → API
+- Upstash console → your database → REST API
+- Meta for Developers → WhatsApp → API Setup
+
+---
+
+## 4. Local development
+
+```bash
+npm run dev
+```
+
+The app runs at `http://localhost:3000`
+
+### Testing multi-tenant routing locally
+
+Edit `/etc/hosts` (Mac/Linux) or `C:\Windows\System32\drivers\etc\hosts` (Windows):
+```
+127.0.0.1 platform.localhost
+127.0.0.1 mystore.localhost
+127.0.0.1 testboutique.localhost
+```
+
+Then visit: `http://mystore.localhost:3000`
+
+---
+
+## 5. Project structure
+
+```
+src/
+├── app/
+│   ├── (auth)/              ← /login, /signup
+│   │   ├── actions.ts       ← Server Actions for auth
+│   │   ├── login/
+│   │   └── signup/
+│   │
+│   ├── (dashboard)/         ← /dashboard/* (auth required)
+│   │   ├── layout.tsx       ← Auth guard + profile load
+│   │   ├── page.tsx         ← Dashboard home (KPIs)
+│   │   ├── stores/          ← Store management
+│   │   ├── products/        ← Product CRUD
+│   │   ├── orders/          ← Order management
+│   │   ├── analytics/       ← Analytics dashboard
+│   │   └── settings/        ← Store settings
+│   │
+│   ├── (storefront)/        ← mystore.platform.ma/*
+│   │   └── [tenant]/
+│   │       ├── layout.tsx   ← Resolves store from slug
+│   │       ├── page.tsx     ← Product listing
+│   │       ├── products/
+│   │       │   └── [slug]/  ← Product detail page
+│   │       ├── cart/
+│   │       └── checkout/
+│   │
+│   └── api/
+│       ├── stores/          ← GET (list), POST (create)
+│       ├── orders/          ← GET (list), POST (place)
+│       │   └── [id]/        ← GET (detail), PATCH (status)
+│       ├── analytics/
+│       │   └── events/      ← POST (track event)
+│       └── webhooks/        ← WhatsApp, delivery providers
+│
+├── lib/
+│   ├── supabase/
+│   │   ├── server.ts        ← Server-side client (SSR, API routes)
+│   │   ├── client.ts        ← Browser client (Client Components)
+│   │   └── admin.ts         ← Service role client (webhooks, cron)
+│   ├── validations/         ← Zod schemas for all inputs
+│   └── utils/
+│       ├── index.ts         ← cn(), formatPrice(), formatDate()...
+│       └── analytics.ts     ← track() fire-and-forget
+│
+├── types/
+│   ├── index.ts             ← App types (Store, Product, Order...)
+│   └── database.types.ts   ← Auto-generated by Supabase CLI
+│
+├── hooks/                   ← React hooks (TanStack Query wrappers)
+└── components/
+    ├── ui/                  ← Primitives (Button, Input, Badge...)
+    ├── dashboard/           ← Dashboard-specific components
+    ├── storefront/          ← Store-facing components
+    └── shared/              ← Used in both (e.g. ProductCard)
+```
+
+---
+
+## 6. Key concepts
+
+### Multi-tenant routing
+The middleware (`src/middleware.ts`) reads the subdomain and rewrites the request:
+- `mystore.platform.ma/products/shirt` → internally served by `/[tenant]/products/[slug]`
+- The URL in the browser never changes
+
+### RLS (Row Level Security)
+Every table has RLS enabled. The database automatically filters data:
+- A merchant can only see their own stores, products, and orders
+- No `WHERE user_id = ...` needed in application code
+- Guest customers can insert orders and analytics events without auth
+
+### Server Actions vs API Routes
+| Use | When |
+|---|---|
+| Server Actions | Dashboard mutations (create product, update settings) |
+| API Routes | Public-facing (storefront checkout, analytics tracking) |
+
+### Snapshot pattern (order_items)
+Order items store a copy of `product_name`, `variant_label`, and `unit_price_mad`
+at the time of order. Never join to the live products table for historical orders.
+
+### Analytics tracking
+All storefront events call `track()` from `lib/utils/analytics.ts`.
+This is fire-and-forget — it never blocks the UI.
+UTM params are captured automatically from the URL.
+
+---
+
+## 7. Deployment (Vercel)
+
+1. Push to GitHub
+2. Import project in Vercel
+3. Add all environment variables
+4. In Vercel dashboard → Domains:
+   - Add `platform.ma` as your root domain
+   - Add `*.platform.ma` as a wildcard domain (enables subdomain routing)
+
+---
+
+## 8. Supabase Storage buckets
+
+Create these buckets in Supabase Storage (all public):
+
+```
+store-assets    ← logos, banners
+product-images  ← product photos
+```
+
+Set CORS to allow your domain.
+
+---
+
+## 9. What's next (Phase 2)
+
+- [ ] Product CRUD pages (`/dashboard/products/new`)
+- [ ] Orders list + detail pages (`/dashboard/orders`)
+- [ ] Analytics dashboard with charts
+- [ ] Store settings page (theme, domain, WhatsApp)
+- [ ] Storefront product detail + cart + checkout flow
+- [ ] WhatsApp notification on new order
