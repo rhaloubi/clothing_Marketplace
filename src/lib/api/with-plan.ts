@@ -79,7 +79,7 @@ export function withPlan(requiredFeature?: PlanFeature) {
       context: RouteWithAuthContext
     ): Promise<Response> => {
       try {
-        const supabase = createClient()
+        const supabase = await createClient()
         const userId = context.auth.user.id
 
         // Load active subscription + plan in one query
@@ -170,7 +170,7 @@ export async function assertProductLimit(
 ): Promise<void> {
   if (plan.maxProducts === null) return // unlimited
 
-  const supabase = createClient()
+  const supabase = await createClient()
   const { count } = await supabase
     .from("products")
     .select("*", { count: "exact", head: true })
@@ -195,7 +195,7 @@ export async function assertStoreLimit(
   userId: string,
   plan: PlanContext
 ): Promise<void> {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { count } = await supabase
     .from("stores")
     .select("*", { count: "exact", head: true })

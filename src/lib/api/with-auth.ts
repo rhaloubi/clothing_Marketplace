@@ -46,7 +46,8 @@ export function withAuth(handler: AuthedHandler) {
     context: RouteContext
   ): Promise<Response> => {
     try {
-      const supabase = createClient()
+      // createClient is now async in Next.js 15 (cookies() is async)
+      const supabase = await createClient()
       const {
         data: { user },
         error: authError,

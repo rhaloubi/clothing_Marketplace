@@ -1,0 +1,653 @@
+---
+description: Full project context for the clothing marketplace SaaS. Read this before writing any code.
+globs: ["**/*.ts", "**/*.tsx", "**/*.js"]
+alwaysApply: true
+---
+
+# Clothing Marketplace SaaS — Project Rules
+
+## What this project is
+
+A multi-tenant SaaS platform for Moroccan clothing merchants. Merchants sign up, create a store, and get a public-facing storefront at `store.platform.ma`. Customers buy via cash-on-delivery (COD) — no payment gateway. The platform charges merchants a monthly subscription (99–499 MAD).
+
+**Business context:**
+- Morocco-only market, COD-first (no Stripe, no CMI yet)
+- WhatsApp is the primary notification channel (bigger than email in Morocco)
+- Customers never create accounts — guest checkout only (name + phone + wilaya)
+- Solo developer building this — every decision optimizes for shipping speed
+
+---
+
+## Tech stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Framework | Next.js 15 (App Router) | SSR storefronts for SEO, API Routes + Server Actions for backend |
+| Language | TypeScript strict mode | End-to-end type safety |
+| Database | Supabase (PostgreSQL) | DB + Auth + Storage + Realtime in one, free tier |
+| Auth | Supabase Auth | Multi-tenant JWT + RLS, zero config |
+| Cache / rate limit | Upstash Redis | Serverless-friendly, free tier |
+| Notifications | WhatsApp Business Cloud API | Free 1K msgs/month, dominant channel in Morocco |
+| Deploy | Vercel Pro | Serverless, wildcard subdomain support, $20/mo |
+| Styling | Tailwind CSS v4 | PostCSS plugin, no config file needed |
+| Validation | Zod | All API inputs validated before touching DB |
+| Package manager | Bun | Faster installs, same Node.js runtime on Vercel |
+
+**Critical: this is NOT microservices.** Everything lives in one Next.js monorepo. No separate backend service. No Docker. Extract only if real bottlenecks appear at 500+ merchants.
+
+---
+
+## Path aliases
+
+Always use `@/` — maps to `./src/*` in tsconfig.json.
+
+```ts
+// ✓ correct
+import { createClient } from "@/lib/supabase/server"
+import { ok, fail, withAuth } from "@/lib/api"
+import type { Store, Order } from "@/types"
+
+// ✗ wrong — never use ~/ or relative paths across folders
+import { createClient } from "../../lib/supabase/server"
+```
+
+---
+
+## Next.js 15 breaking changes — always follow these
+
+### 1. `cookies()` is async
+```ts
+// ✓ correct — server.ts already handles this
+const supabase = await createClient()
+
+// ✗ wrong — will throw in Next.js 15
+const supabase = createClient()
+```
+
+### 2. Route params are a Promise
+```ts
+// ✓ correct
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+}
+
+// ✗ wrong — params is no longer sync in Next.js 15
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const { id } = params // breaks
+}
+```
+
+### 3. React 19 — `useActionState` not `useFormState`
+```ts
+// ✓ correct
+import { useActionState } from "react"
+const [state, action] = useActionState(myAction, null)
+
+// ✗ wrong — removed in React 19
+import { useFormState } from "react-dom"
+```
+
+### 4. ESM project — all config files use `export default`
+The project has `"type": "module"` in package.json. Config files must use ESM syntax.
+
+---
+
+## Environment variables
+
+All vars are validated by `src/env.js` using `@t3-oss/env-nextjs`.
+The app will throw at startup if any required var is missing.
+
+```
+# Server-only (never exposed to browser)
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_PROJECT_ID=
+WHATSAPP_API_URL=
+WHATSAPP_PHONE_NUMBER_ID=
+WHATSAPP_ACCESS_TOKEN=
+WHATSAPP_WEBHOOK_VERIFY_TOKEN=
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+CRON_SECRET=                   # random 32-char string
+
+# Public (exposed to browser via NEXT_PUBLIC_ prefix)
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_ROOT_DOMAIN=platform.localhost   # prod: platform.ma
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+Local dev: `cp .env.example .env.local` and fill in values.
+Skip validation during builds: `SKIP_ENV_VALIDATION=true`.
+
+---
+
+## Multi-tenant architecture
+
+Every store gets a subdomain: `mystore.platform.ma`.
+
+**How routing works:**
+
+```
+Request: mystore.platform.ma/products/shirt
+                ↓
+middleware.ts reads hostname → extracts subdomain "mystore"
+                ↓
+Rewrites internally to: /mystore/products/shirt
+                ↓
+Served by: src/app/(storefront)/[tenant]/products/[slug]/page.tsx
+                ↓
+Browser URL stays: mystore.platform.ma/products/shirt  ← never changes
+```
+
+**Local dev — add to /etc/hosts:**
+```
+127.0.0.1  platform.localhost
+127.0.0.1  mystore.localhost
+127.0.0.1  testboutique.localhost
+```
+
+**Tenant isolation in the DB:**
+Every table has a `store_id` or `user_id` column. Supabase Row Level Security (RLS) enforces isolation automatically — no manual WHERE filtering needed in application code.
+
+---
+
+## Database schema overview
+
+```
+auth.users (Supabase managed)
+  └── profiles                  ← merchant info, auto-created by DB trigger
+      └── subscriptions         ← plan + billing status
+          └── stores            ← 1 on Starter/Growth, up to 3 on Pro
+              ├── products
+              │   ├── attribute_definitions   ← "Taille", "Couleur", "Matière"
+              │   │   └── attribute_values    ← "M", "Rouge", "Coton"
+              │   └── product_variants        ← each size×color combo
+              │       └── variant_attribute_values
+              ├── orders (guest checkout — no customer account)
+              │   └── order_items             ← SNAPSHOT pattern
+              ├── shipping_zones              ← price per wilaya
+              └── analytics_events            ← append-only event log
+```
+
+**Key design decisions:**
+- Prices stored as **integers in MAD** (150 = 150 MAD). No decimals, no centimes.
+- `order_items` stores **snapshots** of product name/price/image at order time. Never join to live products for past orders.
+- `analytics_events` is **append-only**. Never UPDATE or DELETE rows.
+- Variants use an **EAV pattern** (`attribute_definitions` → `attribute_values` → `variant_attribute_values`) to support any attribute type (size, color, material, condition for vintage, etc.) without schema changes.
+
+---
+
+## Supabase clients — use the right one
+
+```ts
+// 1. SERVER CLIENT — Server Components, API Routes, Server Actions
+//    Respects RLS, reads session from cookies
+//    MUST be awaited (Next.js 15)
+import { createClient } from "@/lib/supabase/server"
+const supabase = await createClient()
+
+// 2. BROWSER CLIENT — Client Components only
+//    Use for: auth state listeners, realtime subscriptions
+import { createClient } from "@/lib/supabase/client"
+const supabase = createClient()
+
+// 3. ADMIN CLIENT — Webhooks, cron jobs, server-only operations
+//    Bypasses RLS — use with extreme care
+//    NEVER import in Client Components
+import { createAdminClient } from "@/lib/supabase/admin"
+const supabase = createAdminClient()
+```
+
+---
+
+## Security layer — `src/lib/api/`
+
+Always import from `@/lib/api` (the index re-exports everything).
+
+### Route wrappers — compose these
+
+```ts
+import { withAuth, withRateLimit, withPlan, ok, fail, NotFoundError } from "@/lib/api"
+
+// Public route — just rate limited
+export const POST = withRateLimit("checkout")(async (req) => {
+  return ok({ done: true })
+})
+
+// Authenticated route
+export const GET = withRateLimit()(
+  withAuth(async (req, { auth }) => {
+    // auth.user.id, auth.profile guaranteed non-null
+    return ok({ userId: auth.user.id })
+  })
+)
+
+// Authenticated + plan feature gate
+export const GET = withRateLimit()(
+  withAuth(
+    withPlan("has_analytics")(async (req, { auth }) => {
+      // auth.plan.planName, auth.plan.features, auth.plan.maxProducts
+      return ok({ plan: auth.plan.planName })
+    })
+  )
+)
+
+// Webhook (HMAC signature verification)
+export const POST = withWebhook("whatsapp")(async (req, { rawBody }) => {
+  const payload = JSON.parse(rawBody) as unknown
+  return ok({ received: true })
+})
+
+// Cron job
+export const GET = withWebhook("cron")(async (req, { rawBody }) => {
+  // Protected by Authorization: Bearer <CRON_SECRET>
+  return ok({ ran: true })
+})
+```
+
+### Response helpers — always use these, never raw NextResponse
+
+```ts
+return ok({ store })            // 200
+return ok({ store }, 201)       // 201 (or use created())
+return created({ store })       // 201
+return noContent()              // 204 (DELETE)
+return fail(new NotFoundError("Boutique"))          // 404
+return fail(new ValidationError("Invalide", { name: "Requis" })) // 400
+return fail(new ForbiddenError())                   // 403
+return fail(new ConflictError("Ce slug est pris"))  // 409
+return fail(err)                // catches anything, logs unknowns as 500
+```
+
+### Rate limit presets
+
+```ts
+"auth"     // 10 req/min  — login, signup
+"checkout" // 20 req/min  — guest order placement
+"analytics"// 120 req/min — storefront event tracking
+"api"      // 60 req/min  — default for dashboard routes
+"upload"   // 30 req/min  — file uploads
+"webhook"  // 500 req/min — delivery provider callbacks
+```
+
+---
+
+## Validation — always Zod, always before DB
+
+All schemas live in `src/lib/validations/index.ts`.
+
+```ts
+import { createProductSchema } from "@/lib/validations"
+
+const parsed = createProductSchema.safeParse(body)
+if (!parsed.success) {
+  return fail(new ValidationError(
+    parsed.error.errors[0]?.message ?? "Invalide",
+    // Optional: field-level errors for forms
+    Object.fromEntries(parsed.error.errors.map(e => [e.path.join("."), e.message]))
+  ))
+}
+// Now safe to use parsed.data
+```
+
+---
+
+## API route pattern — copy this template
+
+```ts
+import { NextResponse, type NextRequest } from "next/server"
+import { withAuth, withRateLimit, ok, fail, NotFoundError, ValidationError } from "@/lib/api"
+import { createClient } from "@/lib/supabase/server"
+import { mySchema } from "@/lib/validations"
+import { assertStoreOwnership } from "@/lib/utils"
+
+export const GET = withRateLimit()(
+  withAuth(async (req, { auth, params }) => {
+    const { id } = await params
+    const supabase = await createClient()
+
+    await assertStoreOwnership(supabase, id, auth.user.id)
+
+    const { data, error } = await supabase
+      .from("stores")
+      .select("*")
+      .eq("id", id)
+      .single()
+
+    if (error ?? !data) return fail(new NotFoundError("Boutique"))
+
+    return ok(data)
+  })
+)
+
+export const PATCH = withRateLimit()(
+  withAuth(async (req, { auth, params }) => {
+    const { id } = await params
+    const body = await req.json() as unknown
+    const parsed = mySchema.safeParse(body)
+    if (!parsed.success) return fail(new ValidationError(parsed.error.errors[0]?.message ?? "Invalide"))
+
+    const supabase = await createClient()
+    await assertStoreOwnership(supabase, id, auth.user.id)
+
+    const { data, error } = await supabase
+      .from("stores")
+      .update(parsed.data)
+      .eq("id", id)
+      .select()
+      .single()
+
+    if (error) return fail(error)
+    return ok(data)
+  })
+)
+```
+
+---
+
+## Utility functions — `src/lib/utils/index.ts`
+
+```ts
+import {
+  cn,                    // Tailwind class merging
+  formatPrice,           // 150 → "150 MAD"
+  generateSlug,          // "T-shirt Rouge" → "t-shirt-rouge"
+  generateOrderNumber,   // count=41 → "#1042"
+  formatDate,            // ISO → "15 mars 2024"
+  formatDateTime,        // ISO → "15 mars 2024 à 10:00"
+  formatRelativeTime,    // ISO → "il y a 3 heures"
+  ORDER_STATUS_LABELS,   // { pending: "En attente", ... }
+  ORDER_STATUS_COLORS,   // { pending: "bg-amber-100 text-amber-800", ... }
+  getSessionId,          // anonymous localStorage UUID for analytics
+  getDeviceType,         // "mobile" | "tablet" | "desktop"
+  getErrorMessage,       // unknown → string
+  assertStoreOwnership,  // throws ForbiddenError/NotFoundError if user doesn't own store
+} from "@/lib/utils"
+```
+
+---
+
+## Analytics tracking — `src/lib/utils/analytics.ts`
+
+Client-side only, fire-and-forget. Use in storefront pages only.
+
+```ts
+import {
+  track,               // base function — any event
+  trackPageView,       // call in useEffect on every storefront page
+  trackProductView,    // on product detail page mount
+  trackCartAdd,        // when item added to cart
+  trackCheckoutStart,  // when checkout page opens
+  trackOrderPlaced,    // after successful order submission
+} from "@/lib/utils/analytics"
+
+// Usage in a storefront component:
+useEffect(() => {
+  trackPageView(store.id)
+  trackProductView(store.id, product.id)
+}, [store.id, product.id])
+```
+
+---
+
+## COD order state machine
+
+Valid transitions only — enforced in `PATCH /api/orders/[id]`:
+
+```
+pending → confirmed → shipped → delivered
+    ↓           ↓
+ cancelled   cancelled
+
+shipped → returned
+```
+
+Never skip states. Never go backwards.
+
+---
+
+## Subscription plans
+
+| Plan | Price | Max stores | Max products | Features |
+|---|---|---|---|---|
+| starter | 99 MAD/mo | 1 | 50 | Basic |
+| growth | 249 MAD/mo | 1 | unlimited | +analytics, custom domain, WhatsApp |
+| pro | 499 MAD/mo | 3 | unlimited | +staff, API access |
+
+Plan enforcement uses `withPlan()` wrapper + `assertProductLimit()` / `assertStoreLimit()` helpers.
+
+---
+
+## Morocco-specific context
+
+- **12 wilayas** — pre-seeded in `wilayas` table (Casablanca-Settat, Marrakech-Safi, etc.)
+- **Shipping per wilaya** — each store configures its own rates per region in `shipping_zones`
+- **Phone validation** — Moroccan format: `+212` or `0` + `[5-7]` + 8 digits
+- **Language** — UI in French (primary), Arabic (secondary). All error messages in French.
+- **Shipping providers** — Amana, CTM, Barid Al-Maghrib (pre-seeded in `shipping_providers`)
+
+---
+
+## Project file structure
+
+```
+src/
+├── app/
+│   ├── (auth)/
+│   │   ├── actions.ts              ← Server Actions: signup, login, logout
+│   │   ├── login/page.tsx + login-form.tsx
+│   │   └── signup/page.tsx + signup-form.tsx
+│   │
+│   ├── (dashboard)/               ← /dashboard/* — auth required
+│   │   ├── layout.tsx             ← Auth guard (server component)
+│   │   ├── page.tsx               ← KPI overview
+│   │   ├── stores/                ← Store management pages
+│   │   ├── products/              ← Product CRUD pages
+│   │   ├── orders/                ← Order management pages
+│   │   ├── analytics/             ← Analytics dashboard pages
+│   │   └── settings/              ← Store settings pages
+│   │
+│   ├── (storefront)/              ← mystore.platform.ma/*
+│   │   └── [tenant]/
+│   │       ├── layout.tsx         ← Resolves store from slug, 404 if inactive
+│   │       ├── page.tsx           ← Product listing (SSR)
+│   │       ├── products/[slug]/   ← Product detail (SSR)
+│   │       ├── cart/              ← Cart page
+│   │       └── checkout/          ← Checkout + order placement
+│   │
+│   └── api/
+│       ├── stores/
+│       │   ├── route.ts           ← GET list, POST create ✓ DONE
+│       │   └── [id]/
+│       │       ├── route.ts       ← GET, PATCH, DELETE ← TODO
+│       │       └── shipping-zones/
+│       │           ├── route.ts   ← GET, POST ← TODO
+│       │           └── [zoneId]/route.ts ← PATCH, DELETE ← TODO
+│       ├── products/
+│       │   ├── route.ts           ← GET, POST ← TODO
+│       │   └── [id]/
+│       │       ├── route.ts       ← GET, PATCH, DELETE ← TODO
+│       │       └── variants/
+│       │           ├── route.ts   ← GET, POST ← TODO
+│       │           └── [variantId]/route.ts ← PATCH, DELETE ← TODO
+│       ├── attributes/
+│       │   ├── route.ts           ← GET, POST ← TODO
+│       │   └── [id]/route.ts      ← PATCH, DELETE ← TODO
+│       ├── orders/
+│       │   ├── route.ts           ← GET list, POST checkout ✓ DONE
+│       │   └── [id]/route.ts      ← GET detail, PATCH status ✓ DONE
+│       ├── analytics/
+│       │   ├── events/route.ts    ← POST track event ✓ DONE
+│       │   ├── overview/route.ts  ← GET KPIs ← TODO
+│       │   ├── revenue/route.ts   ← GET time series ← TODO
+│       │   ├── funnel/route.ts    ← GET conversion funnel ← TODO
+│       │   ├── products/route.ts  ← GET top sellers ← TODO
+│       │   └── wilayas/route.ts   ← GET geo breakdown ← TODO
+│       ├── storefront/[tenant]/
+│       │   ├── products/route.ts          ← GET listing ← TODO
+│       │   ├── products/[slug]/route.ts   ← GET detail ← TODO
+│       │   ├── shipping/route.ts          ← GET cost for wilaya ← TODO
+│       │   └── orders/route.ts            ← POST guest checkout ← TODO
+│       ├── upload/route.ts        ← POST signed URL ← TODO
+│       ├── wilayas/route.ts       ← GET all wilayas ← TODO
+│       ├── webhooks/
+│       │   ├── whatsapp/route.ts  ← GET verify + POST receive ← TODO
+│       │   └── delivery/route.ts  ← POST status update ← TODO
+│       └── cron/
+│           └── subscription-check/route.ts ← GET expire subs ← TODO
+│
+├── lib/
+│   ├── api/                       ← Security layer ✓ DONE
+│   │   ├── errors.ts              ← Typed error classes
+│   │   ├── response.ts            ← ok(), fail(), created(), noContent()
+│   │   ├── rate-limit.ts          ← Upstash Redis sliding window
+│   │   ├── with-auth.ts           ← withAuth() route wrapper
+│   │   ├── with-plan.ts           ← withPlan() feature gate
+│   │   ├── with-webhook.ts        ← withWebhook() HMAC verifier
+│   │   ├── with-rate-limit.ts     ← withRateLimit() wrapper
+│   │   └── index.ts               ← re-exports everything
+│   ├── supabase/                  ← ✓ DONE
+│   │   ├── server.ts              ← async createClient() — Next.js 15
+│   │   ├── client.ts              ← browser client for realtime/auth
+│   │   └── admin.ts               ← service role, bypasses RLS
+│   ├── whatsapp/                  ← TODO (step 5)
+│   │   ├── client.ts              ← sendMessage() via Meta Cloud API
+│   │   ├── templates.ts           ← order notification message builders
+│   │   └── index.ts
+│   ├── storage/                   ← TODO (step 6)
+│   │   ├── upload.ts              ← generateSignedUploadUrl()
+│   │   ├── delete.ts              ← deleteFile(), deleteFiles()
+│   │   └── index.ts
+│   ├── utils/                     ← ✓ DONE
+│   │   ├── index.ts               ← cn, formatPrice, generateSlug, assertStoreOwnership...
+│   │   └── analytics.ts           ← track(), trackPageView(), trackOrderPlaced()...
+│   └── validations/               ← ✓ DONE
+│       └── index.ts               ← all Zod schemas
+│
+├── middleware.ts                  ← ✓ DONE — subdomain routing + auth guard
+├── env.js                         ← ✓ DONE — T3 env validation
+│
+└── types/
+    ├── index.ts                   ← ✓ DONE — Store, Product, Order, etc.
+    └── database.types.ts          ← ✓ DONE (placeholder — replace with `npm run db:types`)
+```
+
+---
+
+## What's done ✓ vs what's left ← TODO
+
+### ✓ Fully complete
+- `src/lib/api/` — entire security layer (8 files)
+- `src/lib/supabase/` — all 3 clients (Next.js 15 compatible)
+- `src/lib/utils/index.ts` — all shared utilities
+- `src/lib/utils/analytics.ts` — storefront event tracking
+- `src/lib/validations/index.ts` — all Zod schemas
+- `src/types/` — all TypeScript types
+- `src/middleware.ts` — multi-tenant routing
+- `src/env.js` — T3 env validation
+- `next.config.js` — ESM, image config
+- `src/app/(auth)/` — login, signup pages + Server Actions
+- `src/app/(dashboard)/layout.tsx` — auth guard
+- `src/app/(dashboard)/page.tsx` — KPI overview
+- `src/app/(storefront)/[tenant]/layout.tsx` — store resolver
+- `src/app/(storefront)/[tenant]/page.tsx` — product listing
+- `src/app/api/stores/route.ts` — GET list + POST create
+- `src/app/api/orders/route.ts` — GET list + POST checkout
+- `src/app/api/orders/[id]/route.ts` — GET detail + PATCH status
+- `src/app/api/analytics/events/route.ts` — POST track event
+- `supabase-triggers.sql` — DB triggers + decrement_stock RPC
+
+### ← Backend TODO (priority order)
+
+**Step 2 — Products API** (biggest surface area)
+- `src/app/api/products/route.ts`
+- `src/app/api/products/[id]/route.ts`
+- `src/app/api/products/[id]/variants/route.ts`
+- `src/app/api/products/[id]/variants/[variantId]/route.ts`
+- `src/app/api/attributes/route.ts`
+- `src/app/api/attributes/[id]/route.ts`
+
+**Step 3 — Stores & Shipping API**
+- `src/app/api/stores/[id]/route.ts`
+- `src/app/api/stores/[id]/shipping-zones/route.ts`
+- `src/app/api/stores/[id]/shipping-zones/[zoneId]/route.ts`
+- `src/app/api/wilayas/route.ts`
+
+**Step 4 — Analytics query API**
+- `src/app/api/analytics/overview/route.ts`
+- `src/app/api/analytics/revenue/route.ts`
+- `src/app/api/analytics/funnel/route.ts`
+- `src/app/api/analytics/products/route.ts`
+- `src/app/api/analytics/wilayas/route.ts`
+
+**Step 5 — WhatsApp service + webhook**
+- `src/lib/whatsapp/client.ts`
+- `src/lib/whatsapp/templates.ts`
+- `src/lib/whatsapp/index.ts`
+- `src/app/api/webhooks/whatsapp/route.ts`
+
+**Step 6 — Storage (upload + delete)**
+- `src/lib/storage/upload.ts`
+- `src/lib/storage/delete.ts`
+- `src/app/api/upload/route.ts`
+
+**Step 7 — Storefront public API** (called by storefront pages)
+- `src/app/api/storefront/[tenant]/products/route.ts`
+- `src/app/api/storefront/[tenant]/products/[slug]/route.ts`
+- `src/app/api/storefront/[tenant]/shipping/route.ts`
+- `src/app/api/storefront/[tenant]/orders/route.ts`
+
+**Step 8 — Cron + delivery webhook**
+- `src/app/api/cron/subscription-check/route.ts`
+- `src/app/api/webhooks/delivery/route.ts`
+
+---
+
+## Supabase setup checklist (do this once)
+
+1. Create project at supabase.com
+2. Run `database-schema.md` in SQL Editor (tables + indexes + RLS policies)
+3. Run `supabase-triggers.sql` in SQL Editor (profile trigger + decrement_stock + updated_at)
+4. Create storage buckets: `store-assets` and `product-images` (both public)
+5. Generate types: `npm run db:types`
+
+### DB trigger quick reference
+- `on_auth_user_created` — auto-creates `profiles` row on signup
+- `on_profile_created` — auto-seeds 30-day `starter` subscription
+- `decrement_stock(p_variant_id, p_quantity)` — RPC, prevents race conditions on stock
+- `set_updated_at` — auto-updates `updated_at` on all major tables
+
+---
+
+## Vercel deployment checklist
+
+1. Push to GitHub
+2. Import project in Vercel
+3. Add all env vars from `.env.example`
+4. In Vercel Domains:
+   - Add `platform.ma` as root domain
+   - Add `*.platform.ma` as wildcard domain (enables subdomain tenant routing)
+5. Set `NEXT_PUBLIC_ROOT_DOMAIN=platform.ma` in Vercel env vars
+
+---
+
+## Common mistakes to avoid
+
+| Mistake | Correct approach |
+|---|---|
+| `const supabase = createClient()` in server code | `const supabase = await createClient()` |
+| Accessing `params.id` directly in route handler | `const { id } = await params` |
+| Using `useFormState` from react-dom | `useActionState` from react |
+| Storing prices as floats (150.00) | Integers in MAD (150) |
+| Joining products table for order history | Use snapshot columns on order_items |
+| Importing admin client in a Client Component | Admin client is server-only only |
+| Skipping `withRateLimit` on public routes | Always wrap public routes |
+| Direct `NextResponse.json()` in routes | Always use `ok()` / `fail()` helpers |
+| Manual `WHERE user_id = x` in queries | RLS handles it automatically |
+| Updating analytics_events rows | Table is append-only, never UPDATE |

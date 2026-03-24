@@ -3,18 +3,22 @@ import { cookies } from "next/headers"
 import type { Database } from "@/types/database.types"
 
 /**
- * Server-side Supabase client.
- * Use in: Server Components, API Route handlers, Server Actions.
+ * Server-side Supabase client — Next.js 15 compatible.
  *
- * Reads the auth session from cookies automatically.
- * RLS policies are enforced — the logged-in merchant only sees their own data.
+ * BREAKING CHANGE in Next.js 15: cookies() is now async.
+ * This function must be called with await:
+ *   const supabase = await createClient()
+ *
+ * Use in: Server Components, API Route handlers, Server Actions.
+ * RLS policies are enforced — merchant only sees their own data.
  *
  * Usage:
- *   const supabase = createClient()
- *   const { data, error } = await supabase.from("stores").select("*")
+ *   const supabase = await createClient()
+ *   const { data } = await supabase.from("stores").select("*")
  */
-export function createClient() {
-  const cookieStore = cookies()
+export async function createClient() {
+  // Next.js 15: cookies() returns a Promise — must be awaited
+  const cookieStore = await cookies()
 
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
