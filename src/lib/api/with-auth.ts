@@ -16,12 +16,22 @@ export interface AuthContext {
   profile: Profile
 }
 
+type RouteParams = Record<string, string>
+
 type AuthedHandler = (
   request: NextRequest,
-  context: { params: Record<string, string> } & { auth: AuthContext }
+  context: { params: RouteParams } & { auth: AuthContext }
 ) => Promise<Response>
 
-type RouteContext = { params: Record<string, string> }
+/** Next.js 15 passes `params` as a Promise on dynamic routes — accept both. */
+export type RouteContextInput = {
+  params?: RouteParams | Promise<RouteParams>
+}
+
+async function resolveRouteParams(context: RouteContextInput): Promise<RouteParams> {
+  if (context.params === undefined) return {}
+  return await Promise.resolve(context.params)
+}
 
 // ─── withAuth ────────────────────────────────────────────────────────────────
 
@@ -41,11 +51,9 @@ type RouteContext = { params: Record<string, string> }
  *   })
  */
 export function withAuth(handler: AuthedHandler) {
-  return async (
-    request: NextRequest,
-    context: RouteContext
-  ): Promise<Response> => {
+  return async (request: NextRequest, context: RouteContextInput): Promise<Response> => {
     try {
+      const params = await resolveRouteParams(context)
       // createClient is now async in Next.js 15 (cookies() is async)
       const supabase = await createClient()
       const {
@@ -69,7 +77,7 @@ export function withAuth(handler: AuthedHandler) {
       }
 
       return await handler(request, {
-        ...context,
+        params,
         auth: {
           user: {
             id: user.id,

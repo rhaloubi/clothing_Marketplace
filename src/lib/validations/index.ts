@@ -55,7 +55,7 @@ export type UpdateStoreInput = z.infer<typeof updateStoreSchema>
 
 // ─── Product ──────────────────────────────────────────────────────────────────
 
-export const createProductSchema = z.object({
+const productFieldsSchema = z.object({
   name: z
     .string()
     .min(2, "Le nom doit contenir au moins 2 caractères")
@@ -79,12 +79,54 @@ export const createProductSchema = z.object({
   slug: z.string().optional(), // auto-generated if not provided
   meta_title: z.string().max(60).optional().nullable(),
   meta_description: z.string().max(160).optional().nullable(),
-}).refine(
+})
+
+export const createProductSchema = productFieldsSchema.refine(
   (data) => !data.compare_price || data.compare_price > data.base_price,
   { message: "Le prix barré doit être supérieur au prix de vente", path: ["compare_price"] }
 )
 
 export type CreateProductInput = z.infer<typeof createProductSchema>
+
+export const createProductWithStoreSchema = productFieldsSchema
+  .extend({ store_id: z.string().uuid("Boutique invalide") })
+  .refine(
+    (data) => !data.compare_price || data.compare_price > data.base_price,
+    { message: "Le prix barré doit être supérieur au prix de vente", path: ["compare_price"] }
+  )
+
+export type CreateProductWithStoreInput = z.infer<typeof createProductWithStoreSchema>
+
+export const updateProductSchema = productFieldsSchema
+  .omit({ slug: true })
+  .partial()
+  .extend({
+    slug: z
+      .string()
+      .min(3)
+      .max(80)
+      .regex(/^[a-z0-9-]+$/, "Le slug ne peut contenir que des lettres minuscules, chiffres et tirets")
+      .optional(),
+  })
+  .refine(
+    (data) =>
+      data.base_price === undefined ||
+      data.compare_price === undefined ||
+      data.compare_price === null ||
+      !data.base_price ||
+      data.compare_price > data.base_price,
+    { message: "Le prix barré doit être supérieur au prix de vente", path: ["compare_price"] }
+  )
+
+export type UpdateProductInput = z.infer<typeof updateProductSchema>
+
+export const listProductsQuerySchema = z.object({
+  store_id: z.string().uuid("Boutique requise"),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+})
+
+export type ListProductsQuery = z.infer<typeof listProductsQuerySchema>
 
 // ─── Product Variant ──────────────────────────────────────────────────────────
 
@@ -97,6 +139,7 @@ export const productVariantSchema = z.object({
     .min(0, "Le stock ne peut pas être négatif")
     .default(0),
   images: z.array(z.string().url()).max(5).default([]),
+  is_active: z.boolean().optional().default(true),
   // The attribute values that define this variant
   attribute_value_ids: z
     .array(z.string().uuid())
@@ -104,6 +147,14 @@ export const productVariantSchema = z.object({
 })
 
 export type ProductVariantInput = z.infer<typeof productVariantSchema>
+
+export const updateProductVariantSchema = productVariantSchema.partial().refine(
+  (data) =>
+    data.attribute_value_ids === undefined || data.attribute_value_ids.length >= 1,
+  { message: "Chaque variante doit avoir au moins un attribut", path: ["attribute_value_ids"] }
+)
+
+export type UpdateProductVariantInput = z.infer<typeof updateProductVariantSchema>
 
 // ─── Order (guest checkout) ───────────────────────────────────────────────────
 
@@ -168,3 +219,23 @@ export const attributeDefinitionSchema = z.object({
 })
 
 export type AttributeDefinitionInput = z.infer<typeof attributeDefinitionSchema>
+
+export const createAttributeDefinitionWithStoreSchema = attributeDefinitionSchema.extend({
+  store_id: z.string().uuid("Boutique invalide"),
+})
+
+export type CreateAttributeDefinitionWithStoreInput = z.infer<
+  typeof createAttributeDefinitionWithStoreSchema
+>
+
+export const updateAttributeDefinitionSchema = attributeDefinitionSchema
+  .omit({ values: true })
+  .partial()
+
+export type UpdateAttributeDefinitionInput = z.infer<typeof updateAttributeDefinitionSchema>
+
+export const listAttributesQuerySchema = z.object({
+  store_id: z.string().uuid("Boutique requise"),
+})
+
+export type ListAttributesQuery = z.infer<typeof listAttributesQuerySchema>

@@ -1,11 +1,12 @@
 # Clothing Marketplace — Setup Guide
 
 ## Stack
-- **Next.js 14** (App Router) — frontend + backend in one
+- **Next.js 15** (App Router) — frontend + backend in one
 - **Supabase** — PostgreSQL + Auth + Storage + Realtime
 - **Upstash Redis** — rate limiting
 - **Vercel** — deployment
 - **WhatsApp Business Cloud API** — order notifications
+- **Bun** — package manager / scripts
 
 ---
 
@@ -13,8 +14,8 @@
 
 ```bash
 git clone <your-repo>
-cd clothing-marketplace
-npm install
+cd shri_marketplace
+bun install
 ```
 
 ---
@@ -22,14 +23,14 @@ npm install
 ## 2. Supabase setup
 
 1. Create a project at [supabase.com](https://supabase.com)
-2. Go to **SQL Editor** and run:
-   - `database-schema.md` — all tables, indexes, RLS policies
-   - `supabase-triggers.sql` — profile trigger, decrement_stock, updated_at
+2. Go to **SQL Editor** and run **in order**:
+   - [`database-schema.sql`](database-schema.sql) — tables, indexes, RLS, seeds (plans, wilayas, carriers)
+   - [`supabase-triggers.sql`](supabase-triggers.sql) — auth → profile → starter subscription, `updated_at`, `decrement_stock` RPC
 
-3. Generate TypeScript types:
+3. Generate TypeScript types (after the project exists):
 ```bash
 npx supabase login
-npm run db:types
+bun run db:types
 ```
 
 ---
@@ -50,7 +51,7 @@ Fill in all values from:
 ## 4. Local development
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 The app runs at `http://localhost:3000`

@@ -34,7 +34,7 @@ export {
 } from "./rate-limit"
 
 // Route wrappers
-export { withAuth, type AuthContext } from "./with-auth"
+export { withAuth, type AuthContext, type RouteContextInput } from "./with-auth"
 export {
   withPlan,
   assertProductLimit,

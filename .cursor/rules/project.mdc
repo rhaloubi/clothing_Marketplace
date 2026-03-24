@@ -612,7 +612,7 @@ src/
 ## Supabase setup checklist (do this once)
 
 1. Create project at supabase.com
-2. Run `database-schema.md` in SQL Editor (tables + indexes + RLS policies)
+2. Run `database-schema.sql` in SQL Editor (tables + indexes + RLS policies)
 3. Run `supabase-triggers.sql` in SQL Editor (profile trigger + decrement_stock + updated_at)
 4. Create storage buckets: `store-assets` and `product-images` (both public)
 5. Generate types: `npm run db:types`
