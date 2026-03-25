@@ -56,6 +56,15 @@ bun run dev
 
 The app runs at `http://localhost:3000`
 
+### API documentation (development only)
+
+With `bun run dev` (`NODE_ENV=development`):
+
+- **Swagger UI:** [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
+- **OpenAPI JSON:** [http://localhost:3000/api/openapi.json](http://localhost:3000/api/openapi.json)
+
+These URLs return **404** in production (`next build` + `next start`) and on Vercel. The spec lives in `src/lib/openapi/spec.ts` — update it when you add or change API routes.
+
 ### Testing multi-tenant routing locally
 
 Edit `/etc/hosts` (Mac/Linux) or `C:\Windows\System32\drivers\etc\hosts` (Windows):

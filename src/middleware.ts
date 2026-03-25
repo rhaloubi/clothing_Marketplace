@@ -30,6 +30,13 @@ const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "platform.localhost"
 export async function middleware(request: NextRequest) {
   const { pathname, hostname } = request.nextUrl
 
+  // OpenAPI + Swagger UI — dev only (defense in depth; routes also 404 in prod)
+  if (process.env.NODE_ENV === "production") {
+    if (pathname === "/api-docs" || pathname === "/api/openapi.json") {
+      return new NextResponse(null, { status: 404 })
+    }
+  }
+
   // ── 1. Build response + Supabase client ───────────────────────────────────
   // We must create the client here (not import createClient from server.ts)
   // because middleware cannot use next/headers — it runs in the Edge runtime.
