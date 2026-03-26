@@ -7,7 +7,7 @@ import { UnauthorizedError, BadRequestError } from "./errors"
 type WebhookHandler = (
   request: NextRequest,
   context: {
-    params: Record<string, string>
+    params?: Record<string, string>
     rawBody: string
   }
 ) => Promise<Response>
@@ -56,8 +56,7 @@ function timingSafeEqual(a: string, b: string): boolean {
  *
  * Supports two verification strategies:
  *
- * 1. "hmac" (default) — validates X-Signature-256 header
- *    Used by: delivery providers, internal cron jobs
+ * 1. "hmac" / "delivery" — validates X-Signature-256 with `DELIVERY_WEBHOOK_SECRET`
  *    Header format: sha256=<hex>
  *
  * 2. "whatsapp" — validates X-Hub-Signature-256 (Meta's format)
@@ -74,12 +73,12 @@ function timingSafeEqual(a: string, b: string): boolean {
  *   export const POST = withWebhook("whatsapp")(handler)
  */
 export function withWebhook(
-  strategy: "hmac" | "whatsapp" | "cron" = "hmac"
+  strategy: "hmac" | "delivery" | "whatsapp" | "cron" = "delivery"
 ) {
   return function (handler: WebhookHandler) {
     return async (
       request: NextRequest,
-      context: { params: Record<string, string> }
+      context: { params?: Record<string, string> }
     ): Promise<Response> => {
       try {
         // ── Cron jobs: simple secret header ──────────────────────────────────
@@ -94,14 +93,14 @@ export function withWebhook(
             return fail(new UnauthorizedError("Cron secret invalide."))
           }
           const rawBody = await request.text()
-          return await handler(request, { ...context, rawBody })
+          return await handler(request, { ...context, params: context.params ?? {}, rawBody })
         }
 
-        // ── HMAC & WhatsApp: signature verification ───────────────────────────
+        // ── HMAC / delivery / WhatsApp: signature verification ─────────────────
         const secret =
           strategy === "whatsapp"
-            ? process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN
-            : process.env.CRON_SECRET // reuse for generic HMAC webhooks
+            ? process.env.WHATSAPP_APP_SECRET
+            : process.env.DELIVERY_WEBHOOK_SECRET
 
         if (!secret) {
           console.error(`[Webhook] Secret not configured for strategy: ${strategy}`)
@@ -145,7 +144,7 @@ export function withWebhook(
           return fail(new UnauthorizedError("Signature invalide."))
         }
 
-        return await handler(request, { ...context, rawBody })
+        return await handler(request, { ...context, params: context.params ?? {}, rawBody })
       } catch (err) {
         return fail(err)
       }

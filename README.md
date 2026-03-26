@@ -24,14 +24,15 @@ bun install
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. Go to **SQL Editor** and run **in order**:
-   - [`database-schema.sql`](database-schema.sql) — tables, indexes, RLS, seeds (plans, wilayas, carriers)
-   - [`supabase-triggers.sql`](supabase-triggers.sql) — auth → profile → starter subscription, `updated_at`, `decrement_stock` RPC
+   - [`db/database-schema.sql`](db/database-schema.sql) — tables, indexes, RLS, seeds (plans, wilayas, carriers)
+   - [`db/supabase-triggers.sql`](db/supabase-triggers.sql) — auth → profile → starter subscription, `updated_at`, `decrement_stock` RPC
 
 3. Generate TypeScript types (after the project exists):
 ```bash
 npx supabase login
 bun run db:types
 ```
+   This overwrites [`src/types/database.types.ts`](src/types/database.types.ts). Until you run it, the repo keeps a hand-written file aligned with `db/database-schema.sql` so `tsc` stays honest.
 
 ---
 

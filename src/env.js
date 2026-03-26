@@ -17,6 +17,11 @@ export const env = createEnv({
     WHATSAPP_PHONE_NUMBER_ID: z.string().min(1),
     WHATSAPP_ACCESS_TOKEN: z.string().min(1),
     WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().min(1),
+    /** Meta app secret — used to verify `X-Hub-Signature-256` on WhatsApp webhooks (not the verify token). */
+    WHATSAPP_APP_SECRET: z.string().min(1),
+
+    // Partner webhooks (delivery status, etc.)
+    DELIVERY_WEBHOOK_SECRET: z.string().min(32),
 
     // Upstash Redis
     UPSTASH_REDIS_REST_URL: z.string().url(),
@@ -51,6 +56,9 @@ export const env = createEnv({
     WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,
     WHATSAPP_ACCESS_TOKEN: process.env.WHATSAPP_ACCESS_TOKEN,
     WHATSAPP_WEBHOOK_VERIFY_TOKEN: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
+    WHATSAPP_APP_SECRET: process.env.WHATSAPP_APP_SECRET,
+
+    DELIVERY_WEBHOOK_SECRET: process.env.DELIVERY_WEBHOOK_SECRET,
 
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,

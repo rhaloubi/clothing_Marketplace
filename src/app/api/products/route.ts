@@ -3,12 +3,12 @@ import {
   withAuth,
   withRateLimit,
   withPlan,
+  assertProductLimit,
   ok,
   fail,
   ValidationError,
   ConflictError,
 } from "@/lib/api"
-import { assertProductLimit } from "@/lib/api/with-plan"
 import { createClient } from "@/lib/supabase/server"
 import {
   createProductWithStoreSchema,

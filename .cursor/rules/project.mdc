@@ -111,6 +111,8 @@ WHATSAPP_API_URL=
 WHATSAPP_PHONE_NUMBER_ID=
 WHATSAPP_ACCESS_TOKEN=
 WHATSAPP_WEBHOOK_VERIFY_TOKEN=
+WHATSAPP_APP_SECRET=          # signature POST WhatsApp (pas le verify token)
+DELIVERY_WEBHOOK_SECRET=      # partenaires livraison (X-Signature-256), min 32 car.
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 CRON_SECRET=                   # random 32-char string
@@ -238,11 +240,19 @@ export const GET = withRateLimit()(
   )
 )
 
-// Webhook (HMAC signature verification)
+// WhatsApp POST — `WHATSAPP_APP_SECRET` + header X-Hub-Signature-256 (GET = verify token)
 export const POST = withWebhook("whatsapp")(async (req, { rawBody }) => {
   const payload = JSON.parse(rawBody) as unknown
   return ok({ received: true })
 })
+
+// Livraison — `DELIVERY_WEBHOOK_SECRET` + X-Signature-256
+export const POST = withRateLimit("webhook")(
+  withWebhook("delivery")(async (req, { rawBody }) => {
+    const payload = JSON.parse(rawBody) as unknown
+    return ok({ received: true })
+  })
+)
 
 // Cron job
 export const GET = withWebhook("cron")(async (req, { rawBody }) => {
@@ -398,7 +408,7 @@ useEffect(() => {
 
 ## COD order state machine
 
-Valid transitions only — enforced in `PATCH /api/orders/[id]`:
+Valid transitions only — enforced in `PATCH /api/orders/[id]` et `POST /api/webhooks/delivery` :
 
 ```
 pending → confirmed → shipped → delivered
@@ -437,7 +447,11 @@ Plan enforcement uses `withPlan()` wrapper + `assertProductLimit()` / `assertSto
 ## Project file structure
 
 ```
-src/
+(shri_marketplace/)
+├── db/
+│   ├── database-schema.sql       ← schéma + RLS
+│   └── supabase-triggers.sql     ← profils, abonnement starter, decrement_stock
+├── src/
 ├── app/
 │   ├── (auth)/
 │   │   ├── actions.ts              ← Server Actions: signup, login, logout
@@ -462,45 +476,38 @@ src/
 │   │       └── checkout/          ← Checkout + order placement
 │   │
 │   └── api/
+│       ├── openapi.json/route.ts  ← OpenAPI JSON (dev only)
 │       ├── stores/
-│       │   ├── route.ts           ← GET list, POST create ✓ DONE
+│       │   ├── route.ts           ← GET list, POST create ✓
 │       │   └── [id]/
-│       │       ├── route.ts       ← GET, PATCH, DELETE ← TODO
+│       │       ├── route.ts       ← GET, PATCH, DELETE ✓
 │       │       └── shipping-zones/
-│       │           ├── route.ts   ← GET, POST ← TODO
-│       │           └── [zoneId]/route.ts ← PATCH, DELETE ← TODO
-│       ├── products/
-│       │   ├── route.ts           ← GET, POST ← TODO
-│       │   └── [id]/
-│       │       ├── route.ts       ← GET, PATCH, DELETE ← TODO
-│       │       └── variants/
-│       │           ├── route.ts   ← GET, POST ← TODO
-│       │           └── [variantId]/route.ts ← PATCH, DELETE ← TODO
-│       ├── attributes/
-│       │   ├── route.ts           ← GET, POST ← TODO
-│       │   └── [id]/route.ts      ← PATCH, DELETE ← TODO
+│       │           ├── route.ts   ← GET, POST ✓
+│       │           └── [zoneId]/route.ts ← PATCH, DELETE ✓
+│       ├── products/ …          ← ✓ (voir repo)
+│       ├── attributes/ …         ← ✓
 │       ├── orders/
-│       │   ├── route.ts           ← GET list, POST checkout ✓ DONE
-│       │   └── [id]/route.ts      ← GET detail, PATCH status ✓ DONE
+│       │   ├── route.ts           ← GET liste (dashboard) ✓
+│       │   └── [id]/route.ts      ← GET détail, PATCH statut ✓
 │       ├── analytics/
-│       │   ├── events/route.ts    ← POST track event ✓ DONE
-│       │   ├── overview/route.ts  ← GET KPIs ← TODO
-│       │   ├── revenue/route.ts   ← GET time series ← TODO
-│       │   ├── funnel/route.ts    ← GET conversion funnel ← TODO
-│       │   ├── products/route.ts  ← GET top sellers ← TODO
-│       │   └── wilayas/route.ts   ← GET geo breakdown ← TODO
+│       │   ├── events/route.ts    ← POST événement storefront ✓
+│       │   ├── overview/route.ts  ← GET (Growth+) ✓
+│       │   ├── revenue/route.ts   ← GET (Growth+) ✓
+│       │   ├── funnel/route.ts    ← GET (Growth+) ✓
+│       │   ├── products/route.ts  ← GET top ventes ✓
+│       │   └── wilayas/route.ts   ← GET répartition ✓
 │       ├── storefront/[tenant]/
-│       │   ├── products/route.ts          ← GET listing ← TODO
-│       │   ├── products/[slug]/route.ts   ← GET detail ← TODO
-│       │   ├── shipping/route.ts          ← GET cost for wilaya ← TODO
-│       │   └── orders/route.ts            ← POST guest checkout ← TODO
-│       ├── upload/route.ts        ← POST signed URL ← TODO
-│       ├── wilayas/route.ts       ← GET all wilayas ← TODO
+│       │   ├── products/route.ts          ← GET listing ✓
+│       │   ├── products/[slug]/route.ts   ← GET détail ✓
+│       │   ├── shipping/route.ts          ← GET tarif wilaya ✓
+│       │   └── orders/route.ts            ← POST checkout invité ✓
+│       ├── upload/route.ts        ← POST URL signée ✓
+│       ├── wilayas/route.ts       ← GET wilayas (public, cache) ✓
 │       ├── webhooks/
-│       │   ├── whatsapp/route.ts  ← GET verify + POST receive ← TODO
-│       │   └── delivery/route.ts  ← POST status update ← TODO
+│       │   ├── whatsapp/route.ts  ← GET verify + POST ✓
+│       │   └── delivery/route.ts  ← POST statut livraison ✓
 │       └── cron/
-│           └── subscription-check/route.ts ← GET expire subs ← TODO
+│           └── subscription-check/route.ts ← GET expire abonnements ✓
 │
 ├── lib/
 │   ├── api/                       ← Security layer ✓ DONE
@@ -516,14 +523,16 @@ src/
 │   │   ├── server.ts              ← async createClient() — Next.js 15
 │   │   ├── client.ts              ← browser client for realtime/auth
 │   │   └── admin.ts               ← service role, bypasses RLS
-│   ├── whatsapp/                  ← TODO (step 5)
-│   │   ├── client.ts              ← sendMessage() via Meta Cloud API
-│   │   ├── templates.ts           ← order notification message builders
-│   │   └── index.ts
-│   ├── storage/                   ← TODO (step 6)
-│   │   ├── upload.ts              ← generateSignedUploadUrl()
-│   │   ├── delete.ts              ← deleteFile(), deleteFiles()
-│   │   └── index.ts
+│   ├── openapi/
+│   │   └── spec.ts                ← document OpenAPI 3.1 (dev /api-docs)
+│   ├── whatsapp/                  ← ✓ client + templates + index
+│   ├── storage/                   ← ✓ upload (signed URL) + delete + index
+│   ├── server/
+│   │   ├── catalog.ts             ← produits / variantes (dashboard)
+│   │   ├── shipping.ts            ← assert zone ∈ boutique
+│   │   ├── storefront.ts          ← résolution boutique + catalogue public
+│   │   ├── order-status.ts        ← machine d'état COD
+│   │   └── analytics-query.ts     ← parsing plage dates analytics
 │   ├── utils/                     ← ✓ DONE
 │   │   ├── index.ts               ← cn, formatPrice, generateSlug, assertStoreOwnership...
 │   │   └── analytics.ts           ← track(), trackPageView(), trackOrderPlaced()...
@@ -542,78 +551,37 @@ src/
 
 ## What's done ✓ vs what's left ← TODO
 
-### ✓ Fully complete
-- `src/lib/api/` — entire security layer (8 files)
-- `src/lib/supabase/` — all 3 clients (Next.js 15 compatible)
-- `src/lib/utils/index.ts` — all shared utilities
-- `src/lib/utils/analytics.ts` — storefront event tracking
-- `src/lib/validations/index.ts` — all Zod schemas
-- `src/types/` — all TypeScript types
-- `src/middleware.ts` — multi-tenant routing
-- `src/env.js` — T3 env validation
-- `next.config.js` — ESM, image config
-- `src/app/(auth)/` — login, signup pages + Server Actions
-- `src/app/(dashboard)/layout.tsx` — auth guard
-- `src/app/(dashboard)/page.tsx` — KPI overview
-- `src/app/(storefront)/[tenant]/layout.tsx` — store resolver
-- `src/app/(storefront)/[tenant]/page.tsx` — product listing
-- `src/app/api/stores/route.ts` — GET list + POST create
-- `src/app/api/orders/route.ts` — GET list + POST checkout
-- `src/app/api/orders/[id]/route.ts` — GET detail + PATCH status
-- `src/app/api/analytics/events/route.ts` — POST track event
-- `supabase-triggers.sql` — DB triggers + decrement_stock RPC
+### ✓ Fully complete (backend API)
+- `db/database-schema.sql`, `db/supabase-triggers.sql`
+- `src/lib/api/` — sécurité (dont `withWebhook` : `whatsapp`, `delivery`, `cron`)
+- `src/lib/supabase/` — clients server / browser / admin
+- `src/lib/utils/`, `src/lib/validations/`, `src/types/`
+- `src/lib/server/` — `catalog`, `shipping`, `storefront`, `order-status`, `analytics-query`
+- `src/lib/whatsapp/`, `src/lib/storage/`, `src/lib/openapi/spec.ts`
+- `src/middleware.ts`, `src/env.js`, `next.config.js`
+- Auth + dashboard + storefront UI de base (`src/app/(auth)`, `(dashboard)`, `(storefront)`)
+- **Stores** : `api/stores`, `api/stores/[id]`, shipping-zones CRUD, `api/wilayas`
+- **Products / variants / attributes** : sous `api/products`, `api/attributes` (voir arborescence)
+- **Orders dashboard** : `api/orders` (GET liste), `api/orders/[id]` (GET, PATCH + machine d'état COD)
+- **Analytics** : `api/analytics/events` (POST public), routes query avec `withPlan("has_analytics")`
+- **Storefront API** : `api/storefront/[tenant]/products`, `.../products/[slug]`, `shipping`, `orders` (POST checkout + `decrement_stock` via service role + rollback stock)
+- **Upload** : `api/upload` + URLs signées Supabase Storage
+- **Webhooks** : `api/webhooks/whatsapp`, `api/webhooks/delivery`
+- **Cron** : `api/cron/subscription-check` (abonnements → `expired`)
 
-### ← Backend TODO (priority order)
-
-**Step 2 — Products API** (biggest surface area)
-- `src/app/api/products/route.ts`
-- `src/app/api/products/[id]/route.ts`
-- `src/app/api/products/[id]/variants/route.ts`
-- `src/app/api/products/[id]/variants/[variantId]/route.ts`
-- `src/app/api/attributes/route.ts`
-- `src/app/api/attributes/[id]/route.ts`
-
-**Step 3 — Stores & Shipping API**
-- `src/app/api/stores/[id]/route.ts`
-- `src/app/api/stores/[id]/shipping-zones/route.ts`
-- `src/app/api/stores/[id]/shipping-zones/[zoneId]/route.ts`
-- `src/app/api/wilayas/route.ts`
-
-**Step 4 — Analytics query API**
-- `src/app/api/analytics/overview/route.ts`
-- `src/app/api/analytics/revenue/route.ts`
-- `src/app/api/analytics/funnel/route.ts`
-- `src/app/api/analytics/products/route.ts`
-- `src/app/api/analytics/wilayas/route.ts`
-
-**Step 5 — WhatsApp service + webhook**
-- `src/lib/whatsapp/client.ts`
-- `src/lib/whatsapp/templates.ts`
-- `src/lib/whatsapp/index.ts`
-- `src/app/api/webhooks/whatsapp/route.ts`
-
-**Step 6 — Storage (upload + delete)**
-- `src/lib/storage/upload.ts`
-- `src/lib/storage/delete.ts`
-- `src/app/api/upload/route.ts`
-
-**Step 7 — Storefront public API** (called by storefront pages)
-- `src/app/api/storefront/[tenant]/products/route.ts`
-- `src/app/api/storefront/[tenant]/products/[slug]/route.ts`
-- `src/app/api/storefront/[tenant]/shipping/route.ts`
-- `src/app/api/storefront/[tenant]/orders/route.ts`
-
-**Step 8 — Cron + delivery webhook**
-- `src/app/api/cron/subscription-check/route.ts`
-- `src/app/api/webhooks/delivery/route.ts`
+### ← TODO (hors périmètre backend routes ci-dessus)
+- Brancher l’UI storefront / dashboard sur les nouvelles routes (appels `fetch`, etc.)
+- Intégration réelle WhatsApp (parser les payloads Meta, envoi auto à la commande)
+- Politiques Storage Supabase fines (chemins par `user_id` / `store_id` déjà préfixés côté API)
+- Paiement / CMI plus tard ; domaines personnalisés ; staff / API Pro
 
 ---
 
 ## Supabase setup checklist (do this once)
 
 1. Create project at supabase.com
-2. Run `database-schema.sql` in SQL Editor (tables + indexes + RLS policies)
-3. Run `supabase-triggers.sql` in SQL Editor (profile trigger + decrement_stock + updated_at)
+2. Run `db/database-schema.sql` in SQL Editor (tables + indexes + RLS policies)
+3. Run `db/supabase-triggers.sql` in SQL Editor (profile trigger + decrement_stock + updated_at)
 4. Create storage buckets: `store-assets` and `product-images` (both public)
 5. Generate types: `npm run db:types`
 
@@ -649,5 +617,6 @@ src/
 | Importing admin client in a Client Component | Admin client is server-only only |
 | Skipping `withRateLimit` on public routes | Always wrap public routes |
 | Direct `NextResponse.json()` in routes | Always use `ok()` / `fail()` helpers |
+| Vérifier WhatsApp POST avec `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Utiliser `WHATSAPP_APP_SECRET` (signature `X-Hub-Signature-256`) |
 | Manual `WHERE user_id = x` in queries | RLS handles it automatically |
 | Updating analytics_events rows | Table is append-only, never UPDATE |

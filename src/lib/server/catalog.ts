@@ -24,7 +24,7 @@ export async function assertAttributeValuesBelongToStore(
     .in("id", unique)
 
   if (vErr) throw vErr
-  if (!vals || vals.length !== unique.length) {
+  if (vals?.length !== unique.length) {
     throw new NotFoundError("Valeur d'attribut")
   }
 

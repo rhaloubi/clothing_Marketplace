@@ -64,14 +64,22 @@ export function getOpenApiDocument(): Record<string, unknown> {
       description:
         "Endpoints JSON du dashboard (auth Supabase via cookies de session). " +
         "Disponible uniquement en **développement** (`NODE_ENV=development`). " +
-        "Pour « Try it out », être connecté sur la même origine (ex. après login).",
+        "Pour « Try it out », être connecté sur la même origine (ex. après login). " +
+        "**Couverture :** stores (détail + livraison), wilayas, produits, variantes, attributs, commandes dashboard, analytics, upload, API storefront publique, webhooks.",
     },
     servers: [{ url: "/", description: "Origine courante (dev)" }],
     tags: [
       { name: "Stores", description: "Boutiques" },
+      { name: "Shipping", description: "Zones de livraison par wilaya" },
+      { name: "Wilayas", description: "Régions (référence)" },
       { name: "Products", description: "Produits" },
       { name: "Variants", description: "Variantes produit" },
       { name: "Attributes", description: "Attributs EAV (taille, couleur, …)" },
+      { name: "Orders", description: "Commandes (dashboard marchand)" },
+      { name: "Analytics", description: "Statistiques (plan Growth+)" },
+      { name: "Upload", description: "URL signée Supabase Storage" },
+      { name: "Storefront", description: "API publique par slug boutique" },
+      { name: "Webhooks", description: "Partenaires / Meta" },
     ],
     paths: {
       "/api/stores": {
@@ -114,6 +122,152 @@ export function getOpenApiDocument(): Record<string, unknown> {
             "401": unauthorized,
             "403": jsonError,
             "409": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/stores/{id}": {
+        parameters: [{ $ref: "#/components/parameters/StorePathId" }],
+        get: {
+          tags: ["Stores"],
+          summary: "Détail boutique",
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": jsonOk,
+            "401": unauthorized,
+            "403": jsonError,
+            "404": jsonError,
+            "429": rateLimited,
+          },
+        },
+        patch: {
+          tags: ["Stores"],
+          summary: "Mettre à jour une boutique",
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    description: { type: ["string", "null"] },
+                    logo_url: { type: ["string", "null"] },
+                    banner_url: { type: ["string", "null"] },
+                    theme: { type: "string" },
+                    whatsapp_number: { type: ["string", "null"] },
+                    is_active: { type: "boolean" },
+                    meta_title: { type: ["string", "null"] },
+                    meta_description: { type: ["string", "null"] },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "404": jsonError,
+            "409": jsonError,
+            "429": rateLimited,
+          },
+        },
+        delete: {
+          tags: ["Stores"],
+          summary: "Supprimer une boutique (échoue si commandes liées)",
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "204": { description: "Supprimé" },
+            "401": unauthorized,
+            "403": jsonError,
+            "404": jsonError,
+            "409": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/stores/{id}/shipping-zones": {
+        parameters: [{ $ref: "#/components/parameters/StorePathId" }],
+        get: {
+          tags: ["Shipping"],
+          summary: "Lister les zones de livraison",
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": jsonOk,
+            "401": unauthorized,
+            "404": jsonError,
+            "429": rateLimited,
+          },
+        },
+        post: {
+          tags: ["Shipping"],
+          summary: "Créer une zone de livraison",
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["wilaya_id", "price_mad"],
+                  properties: {
+                    wilaya_id: { type: "integer", minimum: 1, maximum: 12 },
+                    provider_id: { type: ["string", "null"], format: "uuid" },
+                    price_mad: { type: "integer", minimum: 0 },
+                    free_shipping_threshold: { type: ["integer", "null"], minimum: 0 },
+                    estimated_days_min: { type: "integer", minimum: 1, default: 2 },
+                    estimated_days_max: { type: "integer", minimum: 1, default: 5 },
+                    is_active: { type: "boolean", default: true },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "409": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/stores/{id}/shipping-zones/{zoneId}": {
+        parameters: [
+          { $ref: "#/components/parameters/StorePathId" },
+          { $ref: "#/components/parameters/ZonePathId" },
+        ],
+        patch: {
+          tags: ["Shipping"],
+          summary: "Mettre à jour une zone",
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "404": jsonError,
+            "429": rateLimited,
+          },
+        },
+        delete: {
+          tags: ["Shipping"],
+          summary: "Supprimer une zone",
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "204": { description: "Supprimé" },
+            "401": unauthorized,
+            "404": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/wilayas": {
+        get: {
+          tags: ["Wilayas"],
+          summary: "Lister les wilayas (public, cacheable)",
+          responses: {
+            "200": jsonOk,
             "429": rateLimited,
           },
         },
@@ -519,6 +673,357 @@ export function getOpenApiDocument(): Record<string, unknown> {
           },
         },
       },
+      "/api/orders": {
+        get: {
+          tags: ["Orders"],
+          summary: "Lister les commandes d'une boutique",
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "store_id",
+              in: "query",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+            {
+              name: "status",
+              in: "query",
+              schema: {
+                type: "string",
+                enum: [
+                  "pending",
+                  "confirmed",
+                  "shipped",
+                  "delivered",
+                  "returned",
+                  "cancelled",
+                ],
+              },
+            },
+            { name: "limit", in: "query", schema: { type: "integer", default: 50 } },
+            { name: "offset", in: "query", schema: { type: "integer", default: 0 } },
+          ],
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/orders/{id}": {
+        parameters: [{ $ref: "#/components/parameters/OrderPathId" }],
+        get: {
+          tags: ["Orders"],
+          summary: "Détail commande + lignes",
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": jsonOk,
+            "401": unauthorized,
+            "404": jsonError,
+            "429": rateLimited,
+          },
+        },
+        patch: {
+          tags: ["Orders"],
+          summary: "Mettre à jour statut / suivi (machine d'état COD)",
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    status: {
+                      type: "string",
+                      enum: [
+                        "pending",
+                        "confirmed",
+                        "shipped",
+                        "delivered",
+                        "returned",
+                        "cancelled",
+                      ],
+                    },
+                    tracking_number: { type: ["string", "null"] },
+                    shipping_provider_id: { type: ["string", "null"], format: "uuid" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "404": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/analytics/events": {
+        post: {
+          tags: ["Analytics"],
+          summary: "Enregistrer un événement (storefront, public)",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object" } } },
+          },
+          responses: {
+            "201": jsonOk,
+            "400": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/analytics/overview": {
+        get: {
+          tags: ["Analytics"],
+          summary: "Vue d'ensemble (plan Growth+)",
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "store_id",
+              in: "query",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+            { name: "from", in: "query", schema: { type: "string", format: "date-time" } },
+            { name: "to", in: "query", schema: { type: "string", format: "date-time" } },
+          ],
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "403": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/analytics/revenue": {
+        get: {
+          tags: ["Analytics"],
+          summary: "Série temporelle CA (plan Growth+)",
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "store_id",
+              in: "query",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+            { name: "from", in: "query", schema: { type: "string", format: "date-time" } },
+            { name: "to", in: "query", schema: { type: "string", format: "date-time" } },
+          ],
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "403": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/analytics/funnel": {
+        get: {
+          tags: ["Analytics"],
+          summary: "Entonnoir conversion (plan Growth+)",
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "store_id",
+              in: "query",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+            { name: "from", in: "query", schema: { type: "string", format: "date-time" } },
+            { name: "to", in: "query", schema: { type: "string", format: "date-time" } },
+          ],
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "403": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/analytics/products": {
+        get: {
+          tags: ["Analytics"],
+          summary: "Top produits vendus (plan Growth+)",
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "store_id",
+              in: "query",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+            { name: "from", in: "query", schema: { type: "string", format: "date-time" } },
+            { name: "to", in: "query", schema: { type: "string", format: "date-time" } },
+          ],
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "403": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/analytics/wilayas": {
+        get: {
+          tags: ["Analytics"],
+          summary: "Répartition par wilaya (plan Growth+)",
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            {
+              name: "store_id",
+              in: "query",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+            { name: "from", in: "query", schema: { type: "string", format: "date-time" } },
+            { name: "to", in: "query", schema: { type: "string", format: "date-time" } },
+          ],
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "403": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/upload": {
+        post: {
+          tags: ["Upload"],
+          summary: "Obtenir une URL d'upload signée",
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["store_id", "bucket", "path", "content_type"],
+                  properties: {
+                    store_id: { type: "string", format: "uuid" },
+                    bucket: { type: "string", enum: ["store-assets", "product-images"] },
+                    path: { type: "string" },
+                    content_type: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/storefront/{tenant}/products": {
+        parameters: [{ $ref: "#/components/parameters/TenantSlug" }],
+        get: {
+          tags: ["Storefront"],
+          summary: "Lister les produits actifs (public)",
+          parameters: [
+            { name: "limit", in: "query", schema: { type: "integer", default: 24 } },
+            { name: "offset", in: "query", schema: { type: "integer", default: 0 } },
+          ],
+          responses: {
+            "200": jsonOk,
+            "404": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/storefront/{tenant}/products/{slug}": {
+        parameters: [
+          { $ref: "#/components/parameters/TenantSlug" },
+          { $ref: "#/components/parameters/ProductSlug" },
+        ],
+        get: {
+          tags: ["Storefront"],
+          summary: "Détail produit + variantes (public)",
+          responses: {
+            "200": jsonOk,
+            "404": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/storefront/{tenant}/shipping": {
+        parameters: [{ $ref: "#/components/parameters/TenantSlug" }],
+        get: {
+          tags: ["Storefront"],
+          summary: "Tarif livraison pour une wilaya (public)",
+          parameters: [
+            {
+              name: "wilaya_id",
+              in: "query",
+              required: true,
+              schema: { type: "integer", minimum: 1, maximum: 12 },
+            },
+          ],
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "404": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/storefront/{tenant}/orders": {
+        parameters: [{ $ref: "#/components/parameters/TenantSlug" }],
+        post: {
+          tags: ["Storefront"],
+          summary: "Checkout invité COD (public)",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object" } } },
+          },
+          responses: {
+            "201": jsonOk,
+            "400": jsonError,
+            "404": jsonError,
+            "409": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/webhooks/whatsapp": {
+        get: {
+          tags: ["Webhooks"],
+          summary: "Vérification Meta (hub.challenge)",
+          responses: { "200": { description: "Challenge" }, "403": { description: "Refusé" } },
+        },
+        post: {
+          tags: ["Webhooks"],
+          summary: "Événements WhatsApp (signature X-Hub-Signature-256)",
+          responses: {
+            "200": jsonOk,
+            "401": jsonError,
+          },
+        },
+      },
+      "/api/webhooks/delivery": {
+        post: {
+          tags: ["Webhooks"],
+          summary: "Mise à jour statut livraison (signature X-Signature-256)",
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": jsonError,
+            "404": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
     },
     components: {
       securitySchemes: {
@@ -550,6 +1055,36 @@ export function getOpenApiDocument(): Record<string, unknown> {
           in: "path",
           required: true,
           schema: { type: "string", format: "uuid" },
+        },
+        StorePathId: {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        },
+        ZonePathId: {
+          name: "zoneId",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        },
+        OrderPathId: {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        },
+        TenantSlug: {
+          name: "tenant",
+          in: "path",
+          required: true,
+          schema: { type: "string", pattern: "^[a-z0-9-]+$" },
+        },
+        ProductSlug: {
+          name: "slug",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
         },
       },
     },

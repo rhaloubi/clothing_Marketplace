@@ -40,15 +40,27 @@ export const createStoreSchema = z.object({
     .or(z.literal("")),
 })
 
-export const updateStoreSchema = createStoreSchema
-  .omit({ slug: true })
-  .extend({
+/** PATCH /api/stores/[id] — all fields optional; slug cannot change via API */
+export const updateStoreSchema = z
+  .object({
+    name: z.string().min(2).max(60).optional(),
+    description: z.string().max(500).optional().nullable(),
+    whatsapp_number: z
+      .string()
+      .regex(/^\+?[0-9]{9,15}$/, "Numéro WhatsApp invalide")
+      .optional()
+      .nullable()
+      .or(z.literal("")),
     theme: z.enum(["minimal", "bold", "elegant"]).optional(),
     theme_config: z.record(z.unknown()).optional(),
     custom_domain: z.string().optional().nullable(),
     meta_title: z.string().max(60).optional().nullable(),
     meta_description: z.string().max(160).optional().nullable(),
+    is_active: z.boolean().optional(),
+    logo_url: z.string().url().optional().nullable(),
+    banner_url: z.string().url().optional().nullable(),
   })
+  .partial()
 
 export type CreateStoreInput = z.infer<typeof createStoreSchema>
 export type UpdateStoreInput = z.infer<typeof updateStoreSchema>
@@ -188,7 +200,7 @@ export type CheckoutInput = z.infer<typeof checkoutSchema>
 
 // ─── Shipping zone ────────────────────────────────────────────────────────────
 
-export const shippingZoneSchema = z.object({
+const shippingZoneBase = z.object({
   wilaya_id: z.number().int().min(1).max(12),
   provider_id: z.string().uuid().optional().nullable(),
   price_mad: z.number().int().min(0, "Le prix de livraison ne peut pas être négatif"),
@@ -196,12 +208,24 @@ export const shippingZoneSchema = z.object({
   estimated_days_min: z.number().int().min(1).default(2),
   estimated_days_max: z.number().int().min(1).default(5),
   is_active: z.boolean().default(true),
-}).refine(
+})
+
+export const shippingZoneSchema = shippingZoneBase.refine(
   (data) => data.estimated_days_max >= data.estimated_days_min,
   { message: "Le délai max doit être ≥ au délai min", path: ["estimated_days_max"] }
 )
 
 export type ShippingZoneInput = z.infer<typeof shippingZoneSchema>
+
+export const updateShippingZoneSchema = shippingZoneBase.partial().refine(
+  (data) =>
+    data.estimated_days_min === undefined ||
+    data.estimated_days_max === undefined ||
+    data.estimated_days_max >= data.estimated_days_min,
+  { message: "Le délai max doit être ≥ au délai min", path: ["estimated_days_max"] }
+)
+
+export type UpdateShippingZoneInput = z.infer<typeof updateShippingZoneSchema>
 
 // ─── Attribute definition ─────────────────────────────────────────────────────
 
@@ -239,3 +263,113 @@ export const listAttributesQuerySchema = z.object({
 })
 
 export type ListAttributesQuery = z.infer<typeof listAttributesQuerySchema>
+
+// ─── Orders (dashboard) ───────────────────────────────────────────────────────
+
+export const orderStatusSchema = z.enum([
+  "pending",
+  "confirmed",
+  "shipped",
+  "delivered",
+  "returned",
+  "cancelled",
+])
+
+export const listOrdersQuerySchema = z.object({
+  store_id: z.string().uuid("Boutique requise"),
+  status: orderStatusSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+})
+
+export type ListOrdersQuery = z.infer<typeof listOrdersQuerySchema>
+
+export const patchOrderSchema = z
+  .object({
+    status: orderStatusSchema.optional(),
+    tracking_number: z.string().max(100).optional().nullable(),
+    shipping_provider_id: z.string().uuid().optional().nullable(),
+  })
+  .refine(
+    (d) =>
+      d.status !== undefined ||
+      d.tracking_number !== undefined ||
+      d.shipping_provider_id !== undefined,
+    { message: "Aucun champ à mettre à jour." }
+  )
+
+export type PatchOrderInput = z.infer<typeof patchOrderSchema>
+
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+export const analyticsRangeQuerySchema = z.object({
+  store_id: z.string().uuid("Boutique requise"),
+  from: z.string().datetime({ offset: true }).optional(),
+  to: z.string().datetime({ offset: true }).optional(),
+})
+
+export type AnalyticsRangeQuery = z.infer<typeof analyticsRangeQuerySchema>
+
+const analyticsEventTypeSchema = z.enum([
+  "page_view",
+  "product_view",
+  "cart_add",
+  "cart_remove",
+  "checkout_start",
+  "checkout_abandon",
+  "order_placed",
+  "order_delivered",
+  "order_returned",
+])
+
+export const trackAnalyticsEventSchema = z.object({
+  store_id: z.string().uuid(),
+  event_type: analyticsEventTypeSchema,
+  product_id: z.string().uuid().optional(),
+  order_id: z.string().uuid().optional(),
+  session_id: z.string().max(128).optional(),
+  wilaya_id: z.number().int().min(1).max(12).optional(),
+  referrer: z.string().max(2000).optional(),
+  utm_source: z.string().max(100).optional(),
+  utm_medium: z.string().max(100).optional(),
+  utm_campaign: z.string().max(100).optional(),
+  device_type: z.enum(["mobile", "tablet", "desktop"]).optional(),
+})
+
+export type TrackAnalyticsEventInput = z.infer<typeof trackAnalyticsEventSchema>
+
+// ─── Storefront checkout ──────────────────────────────────────────────────────
+
+export const checkoutCartItemSchema = z.object({
+  variant_id: z.string().uuid(),
+  quantity: z.number().int().min(1).max(99),
+})
+
+export const storefrontCheckoutSchema = checkoutSchema.extend({
+  items: z.array(checkoutCartItemSchema).min(1, "Le panier est vide"),
+})
+
+export type StorefrontCheckoutInput = z.infer<typeof storefrontCheckoutSchema>
+
+// ─── Upload (signed URL) ──────────────────────────────────────────────────────
+
+export const signedUploadSchema = z.object({
+  store_id: z.string().uuid("Boutique requise"),
+  bucket: z.enum(["store-assets", "product-images"]),
+  path: z
+    .string()
+    .min(1)
+    .max(500)
+    .regex(/^[a-zA-Z0-9/_\-.]+$/, "Chemin invalide"),
+  content_type: z.string().min(1).max(100),
+})
+
+export type SignedUploadInput = z.infer<typeof signedUploadSchema>
+
+// ─── Delivery webhook ─────────────────────────────────────────────────────────
+
+export const deliveryStatusUpdateSchema = z.object({
+  order_id: z.string().uuid(),
+  status: orderStatusSchema,
+  tracking_number: z.string().max(100).optional().nullable(),
+})
