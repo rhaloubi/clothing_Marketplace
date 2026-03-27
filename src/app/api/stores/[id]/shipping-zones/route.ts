@@ -38,7 +38,7 @@ export const GET = withRateLimit("api", { keyBy: "user" })(
   })
 )
 
-export const POST = withRateLimit("api", { keyBy: "user" })(
+export const POST = withRateLimit("write", { keyBy: "user" })(
   withAuth(async (req: NextRequest, { auth, params }) => {
     const storeId = params.id
     if (!storeId) return fail(new BadRequestError("Identifiant boutique requis."))

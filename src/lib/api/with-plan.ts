@@ -30,6 +30,19 @@ const FEATURE_MIN_PLAN: Record<PlanFeature, PlanName> = {
   has_api:           "pro",
 }
 
+const PLAN_CACHE_TTL_MS = 15_000
+const planCache = new Map<string, { expiresAt: number; plan: PlanContext }>()
+
+function withTimingHeader(response: Response, key: string, ms: number): Response {
+  const headers = new Headers(response.headers)
+  headers.set(key, ms.toFixed(2))
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface PlanContext {
@@ -78,9 +91,31 @@ export function withPlan(requiredFeature?: PlanFeature) {
       request: NextRequest,
       context: RouteWithAuthContext
     ): Promise<Response> => {
+      const startedAt = performance.now()
       try {
-        const supabase = await createClient()
         const userId = context.auth.user.id
+        const now = Date.now()
+        const cached = planCache.get(userId)
+        if (cached && cached.expiresAt > now) {
+          if (requiredFeature && !cached.plan.features[requiredFeature]) {
+            const requiredPlan = FEATURE_MIN_PLAN[requiredFeature]
+            return withTimingHeader(
+              fail(new PlanUpgradeRequiredError(requiredPlan)),
+              "X-Plan-ms",
+              performance.now() - startedAt
+            )
+          }
+          const response = await handler(request, {
+            ...context,
+            auth: {
+              ...context.auth,
+              plan: cached.plan,
+            },
+          })
+          return withTimingHeader(response, "X-Plan-ms", performance.now() - startedAt)
+        }
+
+        const supabase = await createClient()
 
         // Load active subscription + plan in one query
         const { data: subscription } = await supabase
@@ -103,7 +138,11 @@ export function withPlan(requiredFeature?: PlanFeature) {
           .single()
 
         if (!subscription) {
-          return fail(new UnauthorizedError("Abonnement introuvable."))
+          return withTimingHeader(
+            fail(new UnauthorizedError("Abonnement introuvable.")),
+            "X-Plan-ms",
+            performance.now() - startedAt
+          )
         }
 
         const plan = subscription.plans as {
@@ -118,7 +157,11 @@ export function withPlan(requiredFeature?: PlanFeature) {
         } | null
 
         if (!plan) {
-          return fail(new UnauthorizedError("Plan introuvable."))
+          return withTimingHeader(
+            fail(new UnauthorizedError("Plan introuvable.")),
+            "X-Plan-ms",
+            performance.now() - startedAt
+          )
         }
 
         const planContext: PlanContext = {
@@ -133,22 +176,31 @@ export function withPlan(requiredFeature?: PlanFeature) {
             has_api:           plan.has_api,
           },
         }
+        planCache.set(userId, {
+          plan: planContext,
+          expiresAt: now + PLAN_CACHE_TTL_MS,
+        })
 
         // Feature gate check
         if (requiredFeature && !planContext.features[requiredFeature]) {
           const requiredPlan = FEATURE_MIN_PLAN[requiredFeature]
-          return fail(new PlanUpgradeRequiredError(requiredPlan))
+          return withTimingHeader(
+            fail(new PlanUpgradeRequiredError(requiredPlan)),
+            "X-Plan-ms",
+            performance.now() - startedAt
+          )
         }
 
-        return await handler(request, {
+        const response = await handler(request, {
           ...context,
           auth: {
             ...context.auth,
             plan: planContext,
           },
         })
+        return withTimingHeader(response, "X-Plan-ms", performance.now() - startedAt)
       } catch (err) {
-        return fail(err)
+        return withTimingHeader(fail(err), "X-Plan-ms", performance.now() - startedAt)
       }
     }
   }

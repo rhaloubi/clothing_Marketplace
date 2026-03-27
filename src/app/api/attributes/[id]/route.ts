@@ -49,7 +49,7 @@ export const GET = withRateLimit("api", { keyBy: "user" })(
   })
 )
 
-export const PATCH = withRateLimit("api", { keyBy: "user" })(
+export const PATCH = withRateLimit("write", { keyBy: "user" })(
   withAuth(async (req: NextRequest, { auth, params }) => {
     const id = params.id
     if (!id) return fail(new BadRequestError("Identifiant attribut requis."))
@@ -109,7 +109,7 @@ export const PATCH = withRateLimit("api", { keyBy: "user" })(
   })
 )
 
-export const DELETE = withRateLimit("api", { keyBy: "user" })(
+export const DELETE = withRateLimit("write", { keyBy: "user" })(
   withAuth(async (_req, { auth, params }) => {
     const id = params.id
     if (!id) return fail(new BadRequestError("Identifiant attribut requis."))

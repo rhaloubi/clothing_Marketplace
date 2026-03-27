@@ -1,8 +1,8 @@
-import { withAuth, withRateLimit, ok, fail } from "@/lib/api"
+import { withUserAuth, withRateLimit, ok, fail } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
 
 export const POST = withRateLimit("auth", { keyBy: "user" })(
-  withAuth(async () => {
+  withUserAuth(async () => {
     const supabase = await createClient()
     const { error } = await supabase.auth.signOut()
     if (error) return fail(error)

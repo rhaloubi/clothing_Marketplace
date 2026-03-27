@@ -24,6 +24,10 @@ export const RATE_LIMIT_PRESETS = {
   analytics: { limit: 120, windowSec: 60, prefix: "analytics" },
   // General API — default for dashboard routes
   api: { limit: 60, windowSec: 60, prefix: "api" },
+  // Authenticated write operations — safer default for mutations
+  write: { limit: 60, windowSec: 60, prefix: "write" },
+  // Public read endpoints — prevent scraping bursts
+  public: { limit: 120, windowSec: 60, prefix: "public" },
   // Upload — low, each upload is a real file
   upload: { limit: 30, windowSec: 60, prefix: "upload" },
   // Webhooks — very loose, delivery providers can send many

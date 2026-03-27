@@ -3,7 +3,7 @@ import { withRateLimit, ok, fail, NotFoundError, ValidationError } from "@/lib/a
 import { createClient } from "@/lib/supabase/server"
 import { fetchActiveStoreBySlug, getShippingZonePrice } from "@/lib/server/storefront"
 
-export const GET = withRateLimit("api")(
+export const GET = withRateLimit("public")(
   async (req: NextRequest, ctx: Record<string, unknown>) => {
     const { tenant } = await (ctx.params as Promise<{ tenant: string }>)
     const raw = req.nextUrl.searchParams.get("wilaya_id")

@@ -6,7 +6,7 @@ import {
   fetchStorefrontProductBySlug,
 } from "@/lib/server/storefront"
 
-export const GET = withRateLimit("api")(
+export const GET = withRateLimit("public")(
   async (_req: NextRequest, ctx: Record<string, unknown>) => {
     const { tenant, slug } = await (ctx.params as Promise<{ tenant: string; slug: string }>)
 

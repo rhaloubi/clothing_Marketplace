@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server"
 import {
   withAuth,
+  withUserAuth,
   withRateLimit,
   withPlan,
   assertStoreLimit,
@@ -13,7 +14,8 @@ import { createClient } from "@/lib/supabase/server"
 import { createStoreSchema } from "@/lib/validations"
 
 export const GET = withRateLimit("api", { keyBy: "user" })(
-  withAuth(async (_req, { auth }) => {
+  withUserAuth(async (_req, { auth }) => {
+    const queryStartedAt = performance.now()
     const supabase = await createClient()
     const { data, error } = await supabase
       .from("stores")
@@ -22,11 +24,13 @@ export const GET = withRateLimit("api", { keyBy: "user" })(
       .order("created_at", { ascending: true })
 
     if (error) return fail(error)
-    return ok(data ?? [])
+    const response = ok(data ?? [])
+    response.headers.set("X-StoresQuery-ms", (performance.now() - queryStartedAt).toFixed(2))
+    return response
   })
 )
 
-export const POST = withRateLimit("api", { keyBy: "user" })(
+export const POST = withRateLimit("write", { keyBy: "user" })(
   withAuth(
     withPlan()(async (req: NextRequest, { auth }) => {
       const body = (await req.json()) as unknown

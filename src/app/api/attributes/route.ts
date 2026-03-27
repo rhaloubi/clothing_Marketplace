@@ -79,7 +79,7 @@ export const GET = withRateLimit("api", { keyBy: "user" })(
   })
 )
 
-export const POST = withRateLimit("api", { keyBy: "user" })(
+export const POST = withRateLimit("write", { keyBy: "user" })(
   withAuth(async (req: NextRequest, { auth }) => {
     const body = (await req.json()) as unknown
     const parsed = createAttributeDefinitionWithStoreSchema.safeParse(body)

@@ -49,7 +49,7 @@ export const GET = withRateLimit("api", { keyBy: "user" })(
   })
 )
 
-export const POST = withRateLimit("api", { keyBy: "user" })(
+export const POST = withRateLimit("write", { keyBy: "user" })(
   withAuth(async (req: NextRequest, { auth, params }) => {
     const productId = params.id
     if (!productId) return fail(new BadRequestError("Identifiant produit requis."))

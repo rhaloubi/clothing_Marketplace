@@ -3,7 +3,7 @@ import { withRateLimit, ok, fail, NotFoundError } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
 import { fetchActiveStoreBySlug, listStorefrontProducts } from "@/lib/server/storefront"
 
-export const GET = withRateLimit("api")(
+export const GET = withRateLimit("public")(
   async (req: NextRequest, ctx: Record<string, unknown>) => {
     const { tenant } = await (ctx.params as Promise<{ tenant: string }>)
     const limit = Math.min(

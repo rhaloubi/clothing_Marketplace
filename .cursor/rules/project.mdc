@@ -620,3 +620,7 @@ Plan enforcement uses `withPlan()` wrapper + `assertProductLimit()` / `assertSto
 | Vérifier WhatsApp POST avec `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Utiliser `WHATSAPP_APP_SECRET` (signature `X-Hub-Signature-256`) |
 | Manual `WHERE user_id = x` in queries | RLS handles it automatically |
 | Updating analytics_events rows | Table is append-only, never UPDATE |
+
+
+
+

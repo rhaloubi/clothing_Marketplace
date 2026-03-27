@@ -37,6 +37,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // API routes should not pay auth-refresh middleware overhead.
+  // Route-level wrappers handle auth/plan/rate-limit explicitly.
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next()
+  }
+
   // ── 1. Build response + Supabase client ───────────────────────────────────
   // We must create the client here (not import createClient from server.ts)
   // because middleware cannot use next/headers — it runs in the Edge runtime.
