@@ -5,8 +5,8 @@ import { assertStoreOwnership } from "@/lib/utils"
 import { signedUploadSchema } from "@/lib/validations"
 import { createClient } from "@/lib/supabase/server"
 
-export const POST = withRateLimit("upload", { keyBy: "user" })(
-  withAuth(async (req: NextRequest, { auth }) => {
+export const POST = withAuth(
+  withRateLimit("upload", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
     const body = (await req.json()) as unknown
     const parsed = signedUploadSchema.safeParse(body)
     if (!parsed.success) {

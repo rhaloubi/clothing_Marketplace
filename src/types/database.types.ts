@@ -606,6 +606,7 @@ export type Database = {
           meta_description: string | null
           meta_title: string | null
           name: string
+          order_counter: number
           slug: string
           theme: string
           theme_config: Json
@@ -624,6 +625,7 @@ export type Database = {
           meta_description?: string | null
           meta_title?: string | null
           name: string
+          order_counter?: number
           slug: string
           theme?: string
           theme_config?: Json
@@ -642,6 +644,7 @@ export type Database = {
           meta_description?: string | null
           meta_title?: string | null
           name?: string
+          order_counter?: number
           slug?: string
           theme?: string
           theme_config?: Json
@@ -754,6 +757,10 @@ export type Database = {
       decrement_stock: {
         Args: { p_quantity: number; p_variant_id: string }
         Returns: undefined
+      }
+      next_store_order_number: {
+        Args: { p_store_id: string }
+        Returns: string
       }
     }
     Enums: {

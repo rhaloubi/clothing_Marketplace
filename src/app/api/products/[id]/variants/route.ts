@@ -17,8 +17,8 @@ import type { Database } from "@/types/database.types"
 type VariantInsert = Database["public"]["Tables"]["product_variants"]["Insert"]
 type VavInsert = Database["public"]["Tables"]["variant_attribute_values"]["Insert"]
 
-export const GET = withRateLimit("api", { keyBy: "user" })(
-  withAuth(async (_req, { auth, params }) => {
+export const GET = withAuth(
+  withRateLimit("api", { keyBy: "user" })(async (_req, { auth, params }) => {
     const productId = params.id
     if (!productId) return fail(new BadRequestError("Identifiant produit requis."))
     const supabase = await createClient()
@@ -49,8 +49,8 @@ export const GET = withRateLimit("api", { keyBy: "user" })(
   })
 )
 
-export const POST = withRateLimit("write", { keyBy: "user" })(
-  withAuth(async (req: NextRequest, { auth, params }) => {
+export const POST = withAuth(
+  withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth, params }) => {
     const productId = params.id
     if (!productId) return fail(new BadRequestError("Identifiant produit requis."))
     const body = (await req.json()) as unknown

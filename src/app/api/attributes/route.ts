@@ -13,8 +13,8 @@ import {
 } from "@/lib/validations"
 import { assertStoreOwnership } from "@/lib/utils"
 
-export const GET = withRateLimit("api", { keyBy: "user" })(
-  withAuth(async (req, { auth }) => {
+export const GET = withAuth(
+  withRateLimit("api", { keyBy: "user" })(async (req, { auth }) => {
     const qs = Object.fromEntries(req.nextUrl.searchParams.entries())
     const parsed = listAttributesQuerySchema.safeParse(qs)
     if (!parsed.success) {
@@ -79,8 +79,8 @@ export const GET = withRateLimit("api", { keyBy: "user" })(
   })
 )
 
-export const POST = withRateLimit("write", { keyBy: "user" })(
-  withAuth(async (req: NextRequest, { auth }) => {
+export const POST = withAuth(
+  withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
     const body = (await req.json()) as unknown
     const parsed = createAttributeDefinitionWithStoreSchema.safeParse(body)
     if (!parsed.success) {

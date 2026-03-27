@@ -9,7 +9,6 @@ import {
 } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { generateOrderNumber } from "@/lib/utils"
 import { storefrontCheckoutSchema } from "@/lib/validations"
 import {
   fetchActiveStoreBySlug,
@@ -138,14 +137,6 @@ export const POST = withRateLimit("checkout")(
     const total_mad = subtotal_mad + shipping_cost_mad
     const admin = createAdminClient()
 
-    const { count, error: cErr } = await admin
-      .from("orders")
-      .select("*", { count: "exact", head: true })
-      .eq("store_id", store.id)
-
-    if (cErr) return fail(cErr)
-    const order_number = generateOrderNumber(count ?? 0)
-
     const decremented: { id: string; qty: number }[] = []
 
     try {
@@ -160,11 +151,18 @@ export const POST = withRateLimit("checkout")(
         decremented.push({ id: variantId, qty })
       }
 
+      const { data: orderNumber, error: numErr } = await admin.rpc("next_store_order_number", {
+        p_store_id: store.id,
+      })
+      if (numErr || typeof orderNumber !== "string") {
+        throw numErr ?? new Error("order_number")
+      }
+
       const { data: order, error: oErr } = await admin
         .from("orders")
         .insert({
           store_id: store.id,
-          order_number,
+          order_number: orderNumber,
           status: "pending",
           customer_name: parsed.data.customer_name,
           customer_phone: parsed.data.customer_phone,
@@ -206,7 +204,7 @@ export const POST = withRateLimit("checkout")(
       return ok(
         {
           order_id: order.id,
-          order_number,
+          order_number: orderNumber,
           total_mad,
           subtotal_mad,
           shipping_cost_mad,

@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase/server"
 import { assertStoreOwnership } from "@/lib/utils"
 import { listOrdersQuerySchema } from "@/lib/validations"
 
-export const GET = withRateLimit("api", { keyBy: "user" })(
-  withAuth(async (req: NextRequest, { auth }) => {
+export const GET = withAuth(
+  withRateLimit("api", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
     const raw = Object.fromEntries(req.nextUrl.searchParams.entries())
     const parsed = listOrdersQuerySchema.safeParse(raw)
     if (!parsed.success) {

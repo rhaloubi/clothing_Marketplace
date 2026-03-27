@@ -78,6 +78,7 @@ CREATE TABLE public.stores (
   custom_domain text,
   whatsapp_number text,
   is_active boolean NOT NULL DEFAULT true,
+  order_counter integer NOT NULL DEFAULT 0,
   meta_title text,
   meta_description text,
   created_at timestamptz NOT NULL DEFAULT now(),

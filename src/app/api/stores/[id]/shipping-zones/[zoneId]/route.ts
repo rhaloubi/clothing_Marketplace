@@ -18,8 +18,8 @@ import type { Database } from "@/types/database.types"
 
 type ZoneUpdate = Database["public"]["Tables"]["shipping_zones"]["Update"]
 
-export const PATCH = withRateLimit("write", { keyBy: "user" })(
-  withAuth(async (req: NextRequest, { auth, params }) => {
+export const PATCH = withAuth(
+  withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth, params }) => {
     const storeId = params.id
     const zoneId = params.zoneId
     if (!storeId || !zoneId) {
@@ -79,8 +79,8 @@ export const PATCH = withRateLimit("write", { keyBy: "user" })(
   })
 )
 
-export const DELETE = withRateLimit("write", { keyBy: "user" })(
-  withAuth(async (_req, { auth, params }) => {
+export const DELETE = withAuth(
+  withRateLimit("write", { keyBy: "user" })(async (_req, { auth, params }) => {
     const storeId = params.id
     const zoneId = params.zoneId
     if (!storeId || !zoneId) {

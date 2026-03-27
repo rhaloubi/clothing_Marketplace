@@ -4,9 +4,9 @@ import { assertStoreOwnership } from "@/lib/utils"
 import { parseAnalyticsRangeQuery, orderCountsAsRevenue } from "@/lib/server/analytics-query"
 import type { NextRequest } from "next/server"
 
-export const GET = withRateLimit("api", { keyBy: "user" })(
-  withAuth(
-    withPlan("has_analytics")(async (req: NextRequest, { auth }) => {
+export const GET = withAuth(
+  withPlan("has_analytics")(
+    withRateLimit("api", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
       let range: ReturnType<typeof parseAnalyticsRangeQuery>
       try {
         range = parseAnalyticsRangeQuery(req)

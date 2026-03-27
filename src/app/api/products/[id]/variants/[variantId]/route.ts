@@ -48,8 +48,8 @@ async function loadVariantContext(
   return { product, variant }
 }
 
-export const GET = withRateLimit("api", { keyBy: "user" })(
-  withAuth(async (_req, { auth, params }) => {
+export const GET = withAuth(
+  withRateLimit("api", { keyBy: "user" })(async (_req, { auth, params }) => {
     const productId = params.id
     const variantId = params.variantId
     if (!productId || !variantId) {
@@ -78,8 +78,8 @@ export const GET = withRateLimit("api", { keyBy: "user" })(
   })
 )
 
-export const PATCH = withRateLimit("write", { keyBy: "user" })(
-  withAuth(async (req: NextRequest, { auth, params }) => {
+export const PATCH = withAuth(
+  withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth, params }) => {
     const productId = params.id
     const variantId = params.variantId
     if (!productId || !variantId) {
@@ -168,8 +168,8 @@ export const PATCH = withRateLimit("write", { keyBy: "user" })(
   })
 )
 
-export const DELETE = withRateLimit("write", { keyBy: "user" })(
-  withAuth(async (_req, { auth, params }) => {
+export const DELETE = withAuth(
+  withRateLimit("write", { keyBy: "user" })(async (_req, { auth, params }) => {
     const productId = params.id
     const variantId = params.variantId
     if (!productId || !variantId) {

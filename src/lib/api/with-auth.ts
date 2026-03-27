@@ -79,33 +79,6 @@ function withTimingHeader(response: Response, key: string, ms: number): Response
   })
 }
 
-function debugLog(
-  runId: string,
-  hypothesisId: string,
-  location: string,
-  message: string,
-  data: Record<string, unknown>
-): void {
-  // #region agent log
-  fetch("http://127.0.0.1:7317/ingest/b4e00ba1-e25e-4db5-8dae-14c7a3521d9a", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "a3bb0b",
-    },
-    body: JSON.stringify({
-      sessionId: "a3bb0b",
-      runId,
-      hypothesisId,
-      location,
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => undefined)
-  // #endregion
-}
-
 // ─── withAuth ────────────────────────────────────────────────────────────────
 
 /**
@@ -127,9 +100,6 @@ export function withAuth(handler: AuthedHandler) {
   return async (request: NextRequest, context: RouteContextInput): Promise<Response> => {
     const startedAt = performance.now()
     try {
-      debugLog("pre-fix", "H4", "with-auth.ts:123", "withAuth_entry", {
-        path: request.nextUrl.pathname,
-      })
       const params = await resolveRouteParams(context)
       const authCallStart = performance.now()
       const authResult = await requireUserAuth()
@@ -138,9 +108,7 @@ export function withAuth(handler: AuthedHandler) {
         return withTimingHeader(authResult.response, "X-Auth-ms", performance.now() - startedAt)
       }
 
-      const profileClientStart = performance.now()
       const supabase = await createClient()
-      const profileClientMs = performance.now() - profileClientStart
 
       // Load profile — created by DB trigger on signup
       const profileQueryStart = performance.now()
@@ -150,12 +118,6 @@ export function withAuth(handler: AuthedHandler) {
         .eq("id", authResult.auth.user.id)
         .single()
       const profileQueryMs = performance.now() - profileQueryStart
-      debugLog("pre-fix", "H6", "with-auth.ts:142", "auth_substeps", {
-        path: request.nextUrl.pathname,
-        authUserMs: authUserMs.toFixed(2),
-        profileClientMs: profileClientMs.toFixed(2),
-        profileQueryMs: profileQueryMs.toFixed(2),
-      })
 
       if (profileError || !profile) {
         return withTimingHeader(
@@ -175,10 +137,6 @@ export function withAuth(handler: AuthedHandler) {
       const out = withTimingHeader(response, "X-Auth-ms", performance.now() - startedAt)
       out.headers.set("X-AuthUser-ms", authUserMs.toFixed(2))
       out.headers.set("X-ProfileQuery-ms", profileQueryMs.toFixed(2))
-      debugLog("pre-fix", "H5", "with-auth.ts:154", "auth_header_attached", {
-        path: request.nextUrl.pathname,
-        hasAuthMs: out.headers.has("X-Auth-ms"),
-      })
       return out
     } catch (err) {
       const { fail: failFn } = await import("./response")

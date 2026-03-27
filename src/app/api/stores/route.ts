@@ -13,8 +13,8 @@ import {
 import { createClient } from "@/lib/supabase/server"
 import { createStoreSchema } from "@/lib/validations"
 
-export const GET = withRateLimit("api", { keyBy: "user" })(
-  withUserAuth(async (_req, { auth }) => {
+export const GET = withUserAuth(
+  withRateLimit("api", { keyBy: "user" })(async (_req, { auth }) => {
     const queryStartedAt = performance.now()
     const supabase = await createClient()
     const { data, error } = await supabase
@@ -30,9 +30,9 @@ export const GET = withRateLimit("api", { keyBy: "user" })(
   })
 )
 
-export const POST = withRateLimit("write", { keyBy: "user" })(
-  withAuth(
-    withPlan()(async (req: NextRequest, { auth }) => {
+export const POST = withAuth(
+  withPlan()(
+    withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
       const body = (await req.json()) as unknown
       const parsed = createStoreSchema.safeParse(body)
       if (!parsed.success) {

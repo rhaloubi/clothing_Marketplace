@@ -15,8 +15,8 @@ import type { Database } from "@/types/database.types"
 
 type ZoneInsert = Database["public"]["Tables"]["shipping_zones"]["Insert"]
 
-export const GET = withRateLimit("api", { keyBy: "user" })(
-  withAuth(async (_req, { auth, params }) => {
+export const GET = withAuth(
+  withRateLimit("api", { keyBy: "user" })(async (_req, { auth, params }) => {
     const storeId = params.id
     if (!storeId) return fail(new BadRequestError("Identifiant boutique requis."))
 
@@ -38,8 +38,8 @@ export const GET = withRateLimit("api", { keyBy: "user" })(
   })
 )
 
-export const POST = withRateLimit("write", { keyBy: "user" })(
-  withAuth(async (req: NextRequest, { auth, params }) => {
+export const POST = withAuth(
+  withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth, params }) => {
     const storeId = params.id
     if (!storeId) return fail(new BadRequestError("Identifiant boutique requis."))
 

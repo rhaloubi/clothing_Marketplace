@@ -19,8 +19,8 @@ import type { Database } from "@/types/database.types"
 
 type ProductInsert = Database["public"]["Tables"]["products"]["Insert"]
 
-export const GET = withRateLimit("api", { keyBy: "user" })(
-  withAuth(async (req, { auth }) => {
+export const GET = withAuth(
+  withRateLimit("api", { keyBy: "user" })(async (req, { auth }) => {
     const qs = Object.fromEntries(req.nextUrl.searchParams.entries())
     const parsed = listProductsQuerySchema.safeParse(qs)
     if (!parsed.success) {
@@ -64,9 +64,9 @@ export const GET = withRateLimit("api", { keyBy: "user" })(
   })
 )
 
-export const POST = withRateLimit("write", { keyBy: "user" })(
-  withAuth(
-    withPlan()(async (req: NextRequest, { auth }) => {
+export const POST = withAuth(
+  withPlan()(
+    withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
       const body = (await req.json()) as unknown
       const parsed = createProductWithStoreSchema.safeParse(body)
       if (!parsed.success) {

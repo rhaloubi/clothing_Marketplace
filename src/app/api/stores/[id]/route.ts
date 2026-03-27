@@ -17,8 +17,8 @@ import type { Database } from "@/types/database.types"
 
 type StoreUpdate = Database["public"]["Tables"]["stores"]["Update"]
 
-export const GET = withRateLimit("api", { keyBy: "user" })(
-  withAuth(async (_req, { auth, params }) => {
+export const GET = withAuth(
+  withRateLimit("api", { keyBy: "user" })(async (_req, { auth, params }) => {
     const id = params.id
     if (!id) return fail(new BadRequestError("Identifiant boutique requis."))
 
@@ -35,8 +35,8 @@ export const GET = withRateLimit("api", { keyBy: "user" })(
   })
 )
 
-export const PATCH = withRateLimit("write", { keyBy: "user" })(
-  withAuth(async (req: NextRequest, { auth, params }) => {
+export const PATCH = withAuth(
+  withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth, params }) => {
     const id = params.id
     if (!id) return fail(new BadRequestError("Identifiant boutique requis."))
 
@@ -89,8 +89,8 @@ export const PATCH = withRateLimit("write", { keyBy: "user" })(
   })
 )
 
-export const DELETE = withRateLimit("write", { keyBy: "user" })(
-  withAuth(async (_req, { auth, params }) => {
+export const DELETE = withAuth(
+  withRateLimit("write", { keyBy: "user" })(async (_req, { auth, params }) => {
     const id = params.id
     if (!id) return fail(new BadRequestError("Identifiant boutique requis."))
 
