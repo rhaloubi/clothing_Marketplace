@@ -14,7 +14,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/database.types.ts"
+    "db:types": "supabase gen types typescript --project-id ikubntswhdjzwqxqkjrd > src/types/database.types.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

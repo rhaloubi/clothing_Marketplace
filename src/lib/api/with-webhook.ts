@@ -7,7 +7,7 @@ import { UnauthorizedError, BadRequestError } from "./errors"
 type WebhookHandler = (
   request: NextRequest,
   context: {
-    params?: Record<string, string>
+    params: Record<string, string>
     rawBody: string
   }
 ) => Promise<Response>
@@ -76,11 +76,19 @@ export function withWebhook(
   strategy: "hmac" | "delivery" | "whatsapp" | "cron" = "delivery"
 ) {
   return function (handler: WebhookHandler) {
+    async function resolveParams(
+      params?: Record<string, string> | Promise<Record<string, string>>
+    ): Promise<Record<string, string>> {
+      if (!params) return {}
+      return await Promise.resolve(params)
+    }
+
     return async (
       request: NextRequest,
-      context: { params?: Record<string, string> }
+      context: { params?: Record<string, string> | Promise<Record<string, string>> }
     ): Promise<Response> => {
       try {
+        const params = await resolveParams(context.params)
         // ── Cron jobs: simple secret header ──────────────────────────────────
         if (strategy === "cron") {
           const cronSecret = process.env.CRON_SECRET
@@ -93,7 +101,7 @@ export function withWebhook(
             return fail(new UnauthorizedError("Cron secret invalide."))
           }
           const rawBody = await request.text()
-          return await handler(request, { ...context, params: context.params ?? {}, rawBody })
+          return await handler(request, { params, rawBody })
         }
 
         // ── HMAC / delivery / WhatsApp: signature verification ─────────────────
@@ -144,7 +152,7 @@ export function withWebhook(
           return fail(new UnauthorizedError("Signature invalide."))
         }
 
-        return await handler(request, { ...context, params: context.params ?? {}, rawBody })
+        return await handler(request, { params, rawBody })
       } catch (err) {
         return fail(err)
       }
