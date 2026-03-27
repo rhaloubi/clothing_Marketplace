@@ -15,6 +15,12 @@ import {
   getShippingZonePrice,
   restoreVariantStock,
 } from "@/lib/server/storefront"
+import { fetchStoreWhatsAppNotificationContext } from "@/lib/server/merchant-notifications"
+import {
+  newOrderMerchantMessage,
+  sendWhatsAppText,
+  toWhatsAppRecipientDigits,
+} from "@/lib/whatsapp"
 
 type ProductEmbed = {
   name: string
@@ -199,6 +205,27 @@ export const POST = withRateLimit("checkout")(
       if (iErr) {
         await admin.from("orders").delete().eq("id", order.id)
         throw iErr
+      }
+
+      const notifyCtx = await fetchStoreWhatsAppNotificationContext(admin, store.id)
+      if (notifyCtx?.hasWhatsAppFeature && notifyCtx.merchantPhone) {
+        const merchantDigits = toWhatsAppRecipientDigits(notifyCtx.merchantPhone)
+        if (merchantDigits) {
+          try {
+            await sendWhatsAppText(
+              merchantDigits,
+              newOrderMerchantMessage({
+                storeName: notifyCtx.storeName,
+                orderNumber,
+                totalMad: total_mad,
+                customerName: parsed.data.customer_name,
+                customerPhone: parsed.data.customer_phone,
+              })
+            )
+          } catch (err) {
+            console.error("[whatsapp] notify merchant new order:", err)
+          }
+        }
       }
 
       return ok(

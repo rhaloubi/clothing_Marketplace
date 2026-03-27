@@ -758,10 +758,7 @@ export type Database = {
         Args: { p_quantity: number; p_variant_id: string }
         Returns: undefined
       }
-      next_store_order_number: {
-        Args: { p_store_id: string }
-        Returns: string
-      }
+      next_store_order_number: { Args: { p_store_id: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never

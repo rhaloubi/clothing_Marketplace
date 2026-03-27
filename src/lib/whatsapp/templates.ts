@@ -17,6 +17,17 @@ export function newOrderMerchantMessage(params: {
   )
 }
 
+export function orderConfirmedCustomerMessage(params: {
+  orderNumber: string
+  storeName: string
+}): string {
+  return (
+    `Bonjour — ${params.storeName}\n` +
+    `Votre commande ${params.orderNumber} est confirmée. Nous préparons l'envoi.\n` +
+    `Merci pour votre achat.`
+  )
+}
+
 export function orderShippedCustomerMessage(params: {
   orderNumber: string
   storeName: string

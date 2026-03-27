@@ -9,6 +9,7 @@ import {
   BadRequestError,
 } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { assertStoreOwnership } from "@/lib/utils"
 import { patchOrderSchema } from "@/lib/validations"
 import type { OrderStatus } from "@/types"
@@ -16,6 +17,13 @@ import {
   assertOrderStatusTransition,
   orderStatusTimestampField,
 } from "@/lib/server/order-status"
+import { fetchStoreWhatsAppNotificationContext } from "@/lib/server/merchant-notifications"
+import {
+  orderConfirmedCustomerMessage,
+  orderShippedCustomerMessage,
+  sendWhatsAppText,
+  toWhatsAppRecipientDigits,
+} from "@/lib/whatsapp"
 
 export const GET = withAuth(
   withRateLimit("api", { keyBy: "user" })(async (_req, { auth, params }) => {
@@ -102,6 +110,40 @@ export const PATCH = withAuth(
       .single()
 
     if (upErr) return fail(upErr)
+
+    const newStatus = parsed.data.status
+    if (newStatus === "confirmed" || newStatus === "shipped") {
+      const admin = createAdminClient()
+      const notifyCtx = await fetchStoreWhatsAppNotificationContext(admin, updated.store_id)
+      if (notifyCtx?.hasWhatsAppFeature) {
+        const customerDigits = toWhatsAppRecipientDigits(updated.customer_phone)
+        if (customerDigits) {
+          try {
+            if (newStatus === "confirmed") {
+              await sendWhatsAppText(
+                customerDigits,
+                orderConfirmedCustomerMessage({
+                  orderNumber: updated.order_number,
+                  storeName: notifyCtx.storeName,
+                })
+              )
+            } else {
+              await sendWhatsAppText(
+                customerDigits,
+                orderShippedCustomerMessage({
+                  orderNumber: updated.order_number,
+                  storeName: notifyCtx.storeName,
+                  trackingNumber: updated.tracking_number,
+                })
+              )
+            }
+          } catch (err) {
+            console.error("[whatsapp] notify customer order status:", err)
+          }
+        }
+      }
+    }
+
     return ok(updated)
   })
 )

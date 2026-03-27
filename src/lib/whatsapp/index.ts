@@ -1,2 +1,7 @@
 export { sendWhatsAppText } from "./client"
-export { newOrderMerchantMessage, orderShippedCustomerMessage } from "./templates"
+export { toWhatsAppRecipientDigits } from "./phone"
+export {
+  newOrderMerchantMessage,
+  orderConfirmedCustomerMessage,
+  orderShippedCustomerMessage,
+} from "./templates"
