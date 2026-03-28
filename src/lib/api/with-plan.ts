@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { fail } from "./response"
 import { PlanUpgradeRequiredError, UnauthorizedError } from "./errors"
-import type { AuthContext } from "./with-auth"
+import type { UserAuthContext } from "./with-auth"
 import type { PlanName } from "@/types"
 
 // ─── Feature flag map ────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ export interface PlanContext {
   features: Record<PlanFeature, boolean>
 }
 
-type PlanAuthContext = AuthContext & { plan: PlanContext }
+type PlanAuthContext = UserAuthContext & { plan: PlanContext }
 
 type PlanHandler = (
   request: NextRequest,
@@ -61,17 +61,17 @@ type PlanHandler = (
 
 type RouteWithAuthContext = {
   params: Record<string, string>
-  auth: AuthContext
+  auth: UserAuthContext
 }
 
 // ─── withPlan ────────────────────────────────────────────────────────────────
 
 /**
  * Route wrapper that enforces plan feature gates.
- * Must be used INSIDE withAuth (relies on auth context).
+ * Must be used INSIDE withUserAuth (identity in context; no profile required).
  *
  * Usage (single feature check):
- *   export const GET = withAuth(
+ *   export const GET = withUserAuth(
  *     withPlan("has_analytics")(async (req, { auth }) => {
  *       const { user, plan } = auth
  *       return ok({ planName: plan.planName })
@@ -79,7 +79,7 @@ type RouteWithAuthContext = {
  *   )
  *
  * Usage (no feature check — just load plan context):
- *   export const GET = withAuth(
+ *   export const GET = withUserAuth(
  *     withPlan()(async (req, { auth }) => {
  *       return ok({ maxProducts: auth.plan.maxProducts })
  *     })

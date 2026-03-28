@@ -1,10 +1,10 @@
 import { type NextRequest } from "next/server"
-import { withAuth, withRateLimit, ok, fail, ValidationError } from "@/lib/api"
+import { withUserAuth, withRateLimit, ok, fail, ValidationError } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
 import { assertStoreOwnership } from "@/lib/utils"
 import { listOrdersQuerySchema } from "@/lib/validations"
 
-export const GET = withAuth(
+export const GET = withUserAuth(
   withRateLimit("api", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
     const raw = Object.fromEntries(req.nextUrl.searchParams.entries())
     const parsed = listOrdersQuerySchema.safeParse(raw)

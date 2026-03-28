@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server"
 import {
-  withAuth,
+  withUserAuth,
   withRateLimit,
   ok,
   fail,
@@ -16,7 +16,7 @@ import type { Database } from "@/types/database.types"
 
 type DefUpdate = Database["public"]["Tables"]["attribute_definitions"]["Update"]
 
-export const GET = withAuth(
+export const GET = withUserAuth(
   withRateLimit("api", { keyBy: "user" })(async (_req, { auth, params }) => {
     const id = params.id
     if (!id) return fail(new BadRequestError("Identifiant attribut requis."))
@@ -49,7 +49,7 @@ export const GET = withAuth(
   })
 )
 
-export const PATCH = withAuth(
+export const PATCH = withUserAuth(
   withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth, params }) => {
     const id = params.id
     if (!id) return fail(new BadRequestError("Identifiant attribut requis."))
@@ -109,7 +109,7 @@ export const PATCH = withAuth(
   })
 )
 
-export const DELETE = withAuth(
+export const DELETE = withUserAuth(
   withRateLimit("write", { keyBy: "user" })(async (_req, { auth, params }) => {
     const id = params.id
     if (!id) return fail(new BadRequestError("Identifiant attribut requis."))

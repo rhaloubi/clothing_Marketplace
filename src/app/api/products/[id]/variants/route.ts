@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server"
 import {
-  withAuth,
+  withUserAuth,
   withRateLimit,
   ok,
   fail,
@@ -17,7 +17,7 @@ import type { Database } from "@/types/database.types"
 type VariantInsert = Database["public"]["Tables"]["product_variants"]["Insert"]
 type VavInsert = Database["public"]["Tables"]["variant_attribute_values"]["Insert"]
 
-export const GET = withAuth(
+export const GET = withUserAuth(
   withRateLimit("api", { keyBy: "user" })(async (_req, { auth, params }) => {
     const productId = params.id
     if (!productId) return fail(new BadRequestError("Identifiant produit requis."))
@@ -49,7 +49,7 @@ export const GET = withAuth(
   })
 )
 
-export const POST = withAuth(
+export const POST = withUserAuth(
   withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth, params }) => {
     const productId = params.id
     if (!productId) return fail(new BadRequestError("Identifiant produit requis."))

@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server"
 import {
-  withAuth,
+  withUserAuth,
   withRateLimit,
   ok,
   fail,
@@ -25,7 +25,7 @@ import {
   toWhatsAppRecipientDigits,
 } from "@/lib/whatsapp"
 
-export const GET = withAuth(
+export const GET = withUserAuth(
   withRateLimit("api", { keyBy: "user" })(async (_req, { auth, params }) => {
     const id = params.id
     if (!id) return fail(new BadRequestError("Identifiant commande requis."))
@@ -46,7 +46,7 @@ export const GET = withAuth(
   })
 )
 
-export const PATCH = withAuth(
+export const PATCH = withUserAuth(
   withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth, params }) => {
     const id = params.id
     if (!id) return fail(new BadRequestError("Identifiant commande requis."))

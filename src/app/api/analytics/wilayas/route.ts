@@ -1,10 +1,10 @@
-import { withAuth, withPlan, withRateLimit, ok, fail } from "@/lib/api"
+import { withUserAuth, withPlan, withRateLimit, ok, fail } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
 import { assertStoreOwnership } from "@/lib/utils"
 import { parseAnalyticsRangeQuery, orderCountsAsRevenue } from "@/lib/server/analytics-query"
 import type { NextRequest } from "next/server"
 
-export const GET = withAuth(
+export const GET = withUserAuth(
   withPlan("has_analytics")(
     withRateLimit("api", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
       let range: ReturnType<typeof parseAnalyticsRangeQuery>

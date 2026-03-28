@@ -1,11 +1,11 @@
 import { type NextRequest } from "next/server"
-import { withAuth, withRateLimit, ok, fail, ValidationError } from "@/lib/api"
+import { withUserAuth, withRateLimit, ok, fail, ValidationError } from "@/lib/api"
 import { createSignedStoreUploadUrl } from "@/lib/storage"
 import { assertStoreOwnership } from "@/lib/utils"
 import { signedUploadSchema } from "@/lib/validations"
 import { createClient } from "@/lib/supabase/server"
 
-export const POST = withAuth(
+export const POST = withUserAuth(
   withRateLimit("upload", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
     const body = (await req.json()) as unknown
     const parsed = signedUploadSchema.safeParse(body)

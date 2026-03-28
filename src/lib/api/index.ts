@@ -4,7 +4,7 @@
  * Import everything from "@/lib/api" instead of individual files.
  *
  * Usage in a route:
- *   import { withAuth, withRateLimit, withPlan, ok, fail, NotFoundError } from "@/lib/api"
+ *   import { withUserAuth, withRateLimit, withPlan, ok, fail, NotFoundError } from "@/lib/api"
  */
 
 // Response helpers

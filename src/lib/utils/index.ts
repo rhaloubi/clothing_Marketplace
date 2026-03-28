@@ -188,7 +188,7 @@ export function getErrorMessage(error: unknown): string {
  * Throws if userId does not own the store.
  * Used in API routes to verify resource ownership before DB calls.
  *
- * Usage (inside withAuth handler):
+ * Usage (inside withUserAuth / withAuth handler):
  *   await assertStoreOwnership(supabase, storeId, auth.user.id)
  */
 import type { SupabaseClient } from "@supabase/supabase-js"

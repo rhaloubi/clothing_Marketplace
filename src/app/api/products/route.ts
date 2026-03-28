@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server"
 import {
-  withAuth,
+  withUserAuth,
   withRateLimit,
   withPlan,
   assertProductLimit,
@@ -19,7 +19,7 @@ import type { Database } from "@/types/database.types"
 
 type ProductInsert = Database["public"]["Tables"]["products"]["Insert"]
 
-export const GET = withAuth(
+export const GET = withUserAuth(
   withRateLimit("api", { keyBy: "user" })(async (req, { auth }) => {
     const qs = Object.fromEntries(req.nextUrl.searchParams.entries())
     const parsed = listProductsQuerySchema.safeParse(qs)
@@ -64,7 +64,7 @@ export const GET = withAuth(
   })
 )
 
-export const POST = withAuth(
+export const POST = withUserAuth(
   withPlan()(
     withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
       const body = (await req.json()) as unknown

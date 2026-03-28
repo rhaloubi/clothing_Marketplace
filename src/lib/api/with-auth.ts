@@ -45,8 +45,14 @@ async function resolveRouteParams(context: RouteContextInput): Promise<RoutePara
   return await Promise.resolve(context.params)
 }
 
+type ServerSupabase = Awaited<ReturnType<typeof createClient>>
+
+/**
+ * One `createClient()` + `getUser()` per request. Reuse `supabase` for follow-up queries (e.g. profile).
+ */
 async function requireUserAuth(): Promise<
-  { ok: true; auth: UserAuthContext } | { ok: false; response: Response }
+  | { ok: true; auth: UserAuthContext; supabase: ServerSupabase }
+  | { ok: false; response: Response }
 > {
   const supabase = await createClient()
   const {
@@ -60,6 +66,7 @@ async function requireUserAuth(): Promise<
 
   return {
     ok: true,
+    supabase,
     auth: {
       user: {
         id: user.id,
@@ -108,7 +115,7 @@ export function withAuth(handler: AuthedHandler) {
         return withTimingHeader(authResult.response, "X-Auth-ms", performance.now() - startedAt)
       }
 
-      const supabase = await createClient()
+      const { supabase } = authResult
 
       // Load profile — created by DB trigger on signup
       const profileQueryStart = performance.now()

@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server"
 import {
-  withAuth,
+  withUserAuth,
   withRateLimit,
   ok,
   fail,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/validations"
 import { assertStoreOwnership } from "@/lib/utils"
 
-export const GET = withAuth(
+export const GET = withUserAuth(
   withRateLimit("api", { keyBy: "user" })(async (req, { auth }) => {
     const qs = Object.fromEntries(req.nextUrl.searchParams.entries())
     const parsed = listAttributesQuerySchema.safeParse(qs)
@@ -79,7 +79,7 @@ export const GET = withAuth(
   })
 )
 
-export const POST = withAuth(
+export const POST = withUserAuth(
   withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
     const body = (await req.json()) as unknown
     const parsed = createAttributeDefinitionWithStoreSchema.safeParse(body)

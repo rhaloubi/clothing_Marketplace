@@ -26,14 +26,14 @@ function withExtraHeaders(response: Response, extra: Record<string, string>): Re
 
 /**
  * Composable rate limit wrapper.
- * Works with or without withAuth — uses IP for unauthenticated routes,
+ * Works with or without withUserAuth/withAuth — uses IP for unauthenticated routes,
  * can use user ID for authenticated routes to prevent IP-sharing abuse.
  *
  * Usage (default — general API preset, keyed by IP):
  *   export const GET = withRateLimit()(handler)
  *
  * Usage (key by user ID — auth must run first so context.auth exists):
- *   export const GET = withAuth(withRateLimit("write", { keyBy: "user" })(handler))
+ *   export const GET = withUserAuth(withRateLimit("write", { keyBy: "user" })(handler))
  *
  * Usage (custom preset, public / IP-keyed):
  *   export const POST = withRateLimit("auth")(handler)
@@ -70,7 +70,7 @@ export function withRateLimit(
         let identifier: string
 
         if (keyBy === "user") {
-          // Requires withAuth/withUserAuth *outside* this wrapper so context.auth is set
+          // Requires withUserAuth (or withAuth) *outside* so context.auth is set
           const auth = context.auth as { user?: { id: string } } | undefined
           identifier = auth?.user?.id ?? getClientIp(request)
         } else {

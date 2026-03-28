@@ -673,6 +673,95 @@ export function getOpenApiDocument(): Record<string, unknown> {
           },
         },
       },
+      "/api/attributes/{id}/values": {
+        post: {
+          tags: ["Attributes"],
+          summary: "Ajouter une valeur à une définition existante",
+          security: [{ cookieAuth: [] }],
+          parameters: [{ $ref: "#/components/parameters/AttributeId" }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["label", "value"],
+                  properties: {
+                    label: { type: "string", minLength: 1, maxLength: 50 },
+                    value: { type: "string", minLength: 1, maxLength: 50 },
+                    color_hex: {
+                      type: ["string", "null"],
+                      pattern: "^#[0-9A-Fa-f]{6}$",
+                    },
+                    sort_order: { type: "integer", minimum: 0, default: 0 },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "404": jsonError,
+            "409": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/attributes/{id}/values/{valueId}": {
+        patch: {
+          tags: ["Attributes"],
+          summary: "Mettre à jour une valeur d'attribut",
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { $ref: "#/components/parameters/AttributeId" },
+            { $ref: "#/components/parameters/AttributeValueId" },
+          ],
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    label: { type: "string", minLength: 1, maxLength: 50 },
+                    value: { type: "string", minLength: 1, maxLength: 50 },
+                    color_hex: {
+                      type: ["string", "null"],
+                      pattern: "^#[0-9A-Fa-f]{6}$",
+                    },
+                    sort_order: { type: "integer", minimum: 0 },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "404": jsonError,
+            "409": jsonError,
+            "429": rateLimited,
+          },
+        },
+        delete: {
+          tags: ["Attributes"],
+          summary: "Supprimer une valeur (si non utilisée par des variantes)",
+          security: [{ cookieAuth: [] }],
+          parameters: [
+            { $ref: "#/components/parameters/AttributeId" },
+            { $ref: "#/components/parameters/AttributeValueId" },
+          ],
+          responses: {
+            "204": { description: "Supprimé" },
+            "401": unauthorized,
+            "404": jsonError,
+            "409": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
       "/api/orders": {
         get: {
           tags: ["Orders"],
@@ -1052,6 +1141,12 @@ export function getOpenApiDocument(): Record<string, unknown> {
         },
         AttributeId: {
           name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        },
+        AttributeValueId: {
+          name: "valueId",
           in: "path",
           required: true,
           schema: { type: "string", format: "uuid" },

@@ -9,20 +9,13 @@ This document walks through creating a merchant account, a store, catalog data (
 3. **Types** — After the schema exists: `bun run db:types` so `Database` types match your project.
 4. **Dev server** — `bun run dev` (default `http://localhost:3000`).
 5. **Response shape** — All JSON APIs use:
-
-   ```json
+  ```json
    { "data": ..., "error": null }
-   ```
-
+  ```
    or on failure:
-
-   ```json
-   { "data": null, "error": { "message": "...", "code": "..." } }
-   ```
-
 6. **OpenAPI / Swagger (dev only)** — With `NODE_ENV=development`:
-   - UI: [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
-   - JSON: [http://localhost:3000/api/openapi.json](http://localhost:3000/api/openapi.json)
+  - UI: [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
+  - JSON: [http://localhost:3000/api/openapi.json](http://localhost:3000/api/openapi.json)
 
 ---
 
@@ -85,12 +78,14 @@ curl -s -b "$COOKIE" http://localhost:3000/api/stores
 - **Auth:** required  
 - **Body (JSON):**
 
-| Field | Type | Required | Notes |
-|--------|------|----------|--------|
-| `name` | string | yes | 2–60 chars |
-| `slug` | string | yes | 3–50 chars, `^[a-z0-9-]+$` |
-| `description` | string | no | max 500 |
-| `whatsapp_number` | string | no | `+` optional, 9–15 digits, or `""` |
+
+| Field             | Type   | Required | Notes                              |
+| ----------------- | ------ | -------- | ---------------------------------- |
+| `name`            | string | yes      | 2–60 chars                         |
+| `slug`            | string | yes      | 3–50 chars, `^[a-z0-9-]+$`         |
+| `description`     | string | no       | max 500                            |
+| `whatsapp_number` | string | no       | `+` optional, 9–15 digits, or `""` |
+
 
 ```json
 {
@@ -113,7 +108,7 @@ Save the returned store `id` as `STORE_ID` and `slug` as `TENANT_SLUG` for later
 
 ### `PATCH /api/stores/{id}`
 
-- **Body:** partial `updateStoreSchema` — optional fields include `name`, `description`, `whatsapp_number`, `theme` (`minimal` \| `bold` \| `elegant`), `theme_config`, `is_active`, `logo_url`, `banner_url`, `meta_title`, `meta_description`, etc.  
+- **Body:** partial `updateStoreSchema` — optional fields include `name`, `description`, `whatsapp_number`, `theme` (`minimal`  `bold`  `elegant`), `theme_config`, `is_active`, `logo_url`, `banner_url`, `meta_title`, `meta_description`, etc.  
 - **Note:** slug is **not** updatable here.
 
 ### `DELETE /api/stores/{id}`
@@ -131,15 +126,17 @@ Save the returned store `id` as `STORE_ID` and `slug` as `TENANT_SLUG` for later
 
 ### `POST /api/stores/{id}/shipping-zones`
 
-| Field | Type | Required | Notes |
-|--------|------|----------|--------|
-| `wilaya_id` | number | yes | 1–12 |
-| `price_mad` | number | yes | integer ≥ 0 |
-| `provider_id` | uuid \| null | no | must exist in `shipping_providers` if set |
-| `free_shipping_threshold` | number \| null | no | integer ≥ 0 |
-| `estimated_days_min` | number | no | default 2, ≥ 1 |
-| `estimated_days_max` | number | no | default 5, ≥ min |
-| `is_active` | boolean | no | default true |
+
+| Field                     | Type          | Required | Notes                                     |
+| ------------------------- | ------------- | -------- | ----------------------------------------- |
+| `wilaya_id`               | number        | yes      | 1–12                                      |
+| `price_mad`               | number        | yes      | integer ≥ 0                               |
+| `provider_id`             | uuid | null   | no       | must exist in `shipping_providers` if set |
+| `free_shipping_threshold` | number | null | no       | integer ≥ 0                               |
+| `estimated_days_min`      | number        | no       | default 2, ≥ 1                            |
+| `estimated_days_max`      | number        | no       | default 5, ≥ min                          |
+| `is_active`               | boolean       | no       | default true                              |
+
 
 Duplicate `(store_id, wilaya_id)` → **409**.
 
@@ -159,23 +156,27 @@ Variants must reference **attribute value UUIDs** from your store.
 
 ### `POST /api/attributes`
 
-| Field | Type | Required |
-|--------|------|----------|
-| `store_id` | uuid | yes |
-| `name` | string | yes, 1–50 chars |
-| `display_type` | enum | no — `select` (default), `color_swatch`, `text`, `button` |
-| `is_required` | boolean | no |
-| `sort_order` | number | no |
-| `values` | array | yes, min 1 item |
+
+| Field          | Type    | Required                                                  |
+| -------------- | ------- | --------------------------------------------------------- |
+| `store_id`     | uuid    | yes                                                       |
+| `name`         | string  | yes, 1–50 chars                                           |
+| `display_type` | enum    | no — `select` (default), `color_swatch`, `text`, `button` |
+| `is_required`  | boolean | no                                                        |
+| `sort_order`   | number  | no                                                        |
+| `values`       | array   | yes, min 1 item                                           |
+
 
 Each value object:
 
-| Field | Type | Required |
-|--------|------|----------|
-| `label` | string | yes |
-| `value` | string | yes |
-| `color_hex` | `#RRGGBB` | no |
-| `sort_order` | number | no |
+
+| Field        | Type      | Required |
+| ------------ | --------- | -------- |
+| `label`      | string    | yes      |
+| `value`      | string    | yes      |
+| `color_hex`  | `#RRGGBB` | no       |
+| `sort_order` | number    | no       |
+
 
 **Example**
 
@@ -192,7 +193,7 @@ Each value object:
 ```
 
 Repeat for **Couleur** (or a single attribute if you only need one dimension).  
-From the response, note **`attribute_values[].id`** — you need at least one UUID per variant.
+From the response, note `**attribute_values[].id`** — you need at least one UUID per variant.
 
 ---
 
@@ -202,20 +203,22 @@ From the response, note **`attribute_values[].id`** — you need at least one UU
 
 ### `POST /api/products`
 
-| Field | Type | Required | Notes |
-|--------|------|----------|--------|
-| `store_id` | uuid | yes | |
-| `name` | string | yes | 2–200 chars |
-| `base_price` | number | yes | integer MAD, 1–100000 |
-| `images` | string[] | yes | min 1, max 10, each a valid URL |
-| `description` | string | no | max 2000 |
-| `category` | string | no | max 100 |
-| `compare_price` | number \| null | no | if set, must be &gt; `base_price` |
-| `is_active` | boolean | no | default true |
-| `is_featured` | boolean | no | default false |
-| `slug` | string | no | auto if omitted |
-| `meta_title` | string | no | max 60 |
-| `meta_description` | string | no | max 160 |
+
+| Field              | Type          | Required | Notes                           |
+| ------------------ | ------------- | -------- | ------------------------------- |
+| `store_id`         | uuid          | yes      |                                 |
+| `name`             | string        | yes      | 2–200 chars                     |
+| `base_price`       | number        | yes      | integer MAD, 1–100000           |
+| `images`           | string[]      | yes      | min 1, max 10, each a valid URL |
+| `description`      | string        | no       | max 2000                        |
+| `category`         | string        | no       | max 100                         |
+| `compare_price`    | number | null | no       | if set, must be > `base_price`  |
+| `is_active`        | boolean       | no       | default true                    |
+| `is_featured`      | boolean       | no       | default false                   |
+| `slug`             | string        | no       | auto if omitted                 |
+| `meta_title`       | string        | no       | max 60                          |
+| `meta_description` | string        | no       | max 160                         |
+
 
 ```json
 {
@@ -240,14 +243,16 @@ Save `PRODUCT_ID` from the response.
 
 ### `POST /api/products/{id}/variants`
 
-| Field | Type | Required | Notes |
-|--------|------|----------|--------|
-| `sku` | string | no | max 100 |
-| `price_override` | number | no | integer ≥ 1 if set |
-| `stock_quantity` | number | no | default 0 |
-| `images` | string[] | no | max 5 URLs |
-| `is_active` | boolean | no | default true |
-| `attribute_value_ids` | uuid[] | yes | min 1; all must belong to this store’s definitions |
+
+| Field                 | Type     | Required | Notes                                              |
+| --------------------- | -------- | -------- | -------------------------------------------------- |
+| `sku`                 | string   | no       | max 100                                            |
+| `price_override`      | number   | no       | integer ≥ 1 if set                                 |
+| `stock_quantity`      | number   | no       | default 0                                          |
+| `images`              | string[] | no       | max 5 URLs                                         |
+| `is_active`           | boolean  | no       | default true                                       |
+| `attribute_value_ids` | uuid[]   | yes      | min 1; all must belong to this store’s definitions |
+
 
 **Example** (one value from “Taille”, one from “Couleur”):
 
@@ -266,7 +271,7 @@ Save `PRODUCT_ID` from the response.
 
 ### `GET /api/orders?store_id={STORE_ID}&limit=50&offset=0`
 
-- Optional query: `status` = `pending` \| `confirmed` \| `shipped` \| `delivered` \| `returned` \| `cancelled`
+- Optional query: `status` = `pending`  `confirmed`  `shipped`  `delivered`  `returned`  `cancelled`
 
 ### `GET /api/orders/{order_id}`
 
@@ -274,11 +279,13 @@ Save `PRODUCT_ID` from the response.
 
 At least one of:
 
-| Field | Type | Notes |
-|--------|------|--------|
-| `status` | enum | COD state machine (no skip / no backwards) |
-| `tracking_number` | string \| null | max 100 |
-| `shipping_provider_id` | uuid \| null | |
+
+| Field                  | Type          | Notes                                      |
+| ---------------------- | ------------- | ------------------------------------------ |
+| `status`               | enum          | COD state machine (no skip / no backwards) |
+| `tracking_number`      | string | null | max 100                                    |
+| `shipping_provider_id` | uuid | null   |                                            |
+
 
 If `status` equals current status, only tracking fields may change.
 
@@ -288,16 +295,18 @@ If `status` equals current status, only tracking fields may change.
 
 ### `POST /api/analytics/events` (public, rate limit `analytics`)
 
-| Field | Type | Required |
-|--------|------|----------|
-| `store_id` | uuid | yes |
-| `event_type` | enum | yes — see below |
-| `product_id` | uuid | no |
-| `order_id` | uuid | no |
-| `session_id` | string | no |
-| `wilaya_id` | 1–12 | no |
-| `referrer`, `utm_*` | string | no |
-| `device_type` | `mobile` \| `tablet` \| `desktop` | no |
+
+| Field               | Type                            | Required        |
+| ------------------- | ------------------------------- | --------------- |
+| `store_id`          | uuid                            | yes             |
+| `event_type`        | enum                            | yes — see below |
+| `product_id`        | uuid                            | no              |
+| `order_id`          | uuid                            | no              |
+| `session_id`        | string                          | no              |
+| `wilaya_id`         | 1–12                            | no              |
+| `referrer`, `utm_*` | string                          | no              |
+| `device_type`       | `mobile` | `tablet` | `desktop` | no              |
+
 
 **event_type:** `page_view`, `product_view`, `cart_add`, `cart_remove`, `checkout_start`, `checkout_abandon`, `order_placed`, `order_delivered`, `order_returned`
 
@@ -305,11 +314,13 @@ If `status` equals current status, only tracking fields may change.
 
 All use query params:
 
-| Param | Required |
-|--------|----------|
-| `store_id` | yes (uuid) |
-| `from` | no (ISO datetime with offset; default ≈ last 30 days) |
-| `to` | no (ISO datetime with offset; default now) |
+
+| Param      | Required                                              |
+| ---------- | ----------------------------------------------------- |
+| `store_id` | yes (uuid)                                            |
+| `from`     | no (ISO datetime with offset; default ≈ last 30 days) |
+| `to`       | no (ISO datetime with offset; default now)            |
+
 
 Endpoints:
 
@@ -341,21 +352,25 @@ Body = `storefrontCheckoutSchema` = `checkoutSchema` + `items`:
 
 **Customer / address**
 
-| Field | Type | Notes |
-|--------|------|--------|
-| `customer_name` | string | 2–100 |
-| `customer_phone` | string | Moroccan `+212` or `0` + 9 digits |
-| `customer_address` | string | 10–300 |
-| `customer_city` | string | 2–100 |
-| `wilaya_id` | number | 1–12 |
-| `customer_notes` | string | optional, max 500 |
+
+| Field              | Type   | Notes                             |
+| ------------------ | ------ | --------------------------------- |
+| `customer_name`    | string | 2–100                             |
+| `customer_phone`   | string | Moroccan `+212` or `0` + 9 digits |
+| `customer_address` | string | 10–300                            |
+| `customer_city`    | string | 2–100                             |
+| `wilaya_id`        | number | 1–12                              |
+| `customer_notes`   | string | optional, max 500                 |
+
 
 **items** (min 1)
 
-| Field | Type | Notes |
-|--------|------|--------|
-| `variant_id` | uuid | |
-| `quantity` | number | 1–99 |
+
+| Field        | Type   | Notes |
+| ------------ | ------ | ----- |
+| `variant_id` | uuid   |       |
+| `quantity`   | number | 1–99  |
+
 
 Requires an active **shipping zone** for that `wilaya_id`. Stock is decremented via `decrement_stock` on success.
 
@@ -365,12 +380,14 @@ Requires an active **shipping zone** for that `wilaya_id`. Stock is decremented 
 
 ### `POST /api/upload` (auth, rate limit `upload`)
 
-| Field | Type | Notes |
-|--------|------|--------|
-| `store_id` | uuid | must own store |
-| `bucket` | enum | `store-assets` \| `product-images` |
-| `path` | string | relative path; server prefixes `{user_id}/{store_id}/` |
-| `content_type` | string | for client PUT metadata |
+
+| Field          | Type   | Notes                                                  |
+| -------------- | ------ | ------------------------------------------------------ |
+| `store_id`     | uuid   | must own store                                         |
+| `bucket`       | enum   | `store-assets` | `product-images`                      |
+| `path`         | string | relative path; server prefixes `{user_id}/{store_id}/` |
+| `content_type` | string | for client PUT metadata                                |
+
 
 Response includes `signed_url` and `token` for Supabase Storage client upload.
 
@@ -378,12 +395,14 @@ Response includes `signed_url` and `token` for Supabase Storage client upload.
 
 ## Step 12 — Webhooks & cron (integration tests)
 
-| Endpoint | Notes |
-|----------|--------|
-| `GET /api/webhooks/whatsapp` | Meta `hub.verify_token` / `hub.challenge` |
-| `POST /api/webhooks/whatsapp` | `X-Hub-Signature-256` using `WHATSAPP_APP_SECRET` |
-| `POST /api/webhooks/delivery` | `X-Signature-256` using `DELIVERY_WEBHOOK_SECRET`; JSON `deliveryStatusUpdateSchema` |
-| `GET /api/cron/subscription-check` | `Authorization: Bearer <CRON_SECRET>` |
+
+| Endpoint                           | Notes                                                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------ |
+| `GET /api/webhooks/whatsapp`       | Meta `hub.verify_token` / `hub.challenge`                                            |
+| `POST /api/webhooks/whatsapp`      | `X-Hub-Signature-256` using `WHATSAPP_APP_SECRET`                                    |
+| `POST /api/webhooks/delivery`      | `X-Signature-256` using `DELIVERY_WEBHOOK_SECRET`; JSON `deliveryStatusUpdateSchema` |
+| `GET /api/cron/subscription-check` | `Authorization: Bearer <CRON_SECRET>`                                                |
+
 
 Use real secrets and canonical JSON bodies when testing signatures.
 
@@ -408,14 +427,16 @@ Use real secrets and canonical JSON bodies when testing signatures.
 
 ## Troubleshooting
 
-| Symptom | Likely cause |
-|---------|----------------|
-| 401 on dashboard routes | Missing or expired Supabase session cookie |
-| 403 on analytics GET | Plan without `has_analytics` |
-| 409 on shipping zone POST | Duplicate `wilaya_id` for that store |
-| 400 on variant POST | `attribute_value_ids` not on this store / invalid UUIDs |
-| 404 on storefront | Wrong tenant slug or store `is_active: false` |
-| Checkout 409 / stock error | `decrement_stock` failed (insufficient stock) |
-| Types feel wrong / `never` on tables | Run `bun run db:types` after applying SQL schema |
 
-For exhaustive path documentation in development, prefer **`/api-docs`** and **`/api/openapi.json`** over duplicating every field here.
+| Symptom                              | Likely cause                                            |
+| ------------------------------------ | ------------------------------------------------------- |
+| 401 on dashboard routes              | Missing or expired Supabase session cookie              |
+| 403 on analytics GET                 | Plan without `has_analytics`                            |
+| 409 on shipping zone POST            | Duplicate `wilaya_id` for that store                    |
+| 400 on variant POST                  | `attribute_value_ids` not on this store / invalid UUIDs |
+| 404 on storefront                    | Wrong tenant slug or store `is_active: false`           |
+| Checkout 409 / stock error           | `decrement_stock` failed (insufficient stock)           |
+| Types feel wrong / `never` on tables | Run `bun run db:types` after applying SQL schema        |
+
+
+For exhaustive path documentation in development, prefer `**/api-docs`** and `**/api/openapi.json**` over duplicating every field here.

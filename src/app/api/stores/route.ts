@@ -1,6 +1,5 @@
 import { type NextRequest } from "next/server"
 import {
-  withAuth,
   withUserAuth,
   withRateLimit,
   withPlan,
@@ -30,7 +29,7 @@ export const GET = withUserAuth(
   })
 )
 
-export const POST = withAuth(
+export const POST = withUserAuth(
   withPlan()(
     withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
       const body = (await req.json()) as unknown

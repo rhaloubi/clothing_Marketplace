@@ -264,6 +264,26 @@ export const listAttributesQuerySchema = z.object({
 
 export type ListAttributesQuery = z.infer<typeof listAttributesQuerySchema>
 
+const attributeValueFieldsSchema = z.object({
+  label: z.string().min(1).max(50),
+  value: z.string().min(1).max(50),
+  color_hex: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional().nullable(),
+  sort_order: z.number().int().min(0).default(0),
+})
+
+/** POST /api/attributes/[id]/values — add one value to an existing definition */
+export const createAttributeValueSchema = attributeValueFieldsSchema
+
+export type CreateAttributeValueInput = z.infer<typeof createAttributeValueSchema>
+
+/** PATCH /api/attributes/[id]/values/[valueId] */
+export const updateAttributeValueSchema = attributeValueFieldsSchema.partial().refine(
+  (data) => Object.keys(data).length > 0,
+  { message: "Au moins un champ est requis" }
+)
+
+export type UpdateAttributeValueInput = z.infer<typeof updateAttributeValueSchema>
+
 // ─── Orders (dashboard) ───────────────────────────────────────────────────────
 
 export const orderStatusSchema = z.enum([

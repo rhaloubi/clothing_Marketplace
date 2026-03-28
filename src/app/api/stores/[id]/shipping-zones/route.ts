@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server"
 import {
-  withAuth,
+  withUserAuth,
   withRateLimit,
   ok,
   fail,
@@ -15,7 +15,7 @@ import type { Database } from "@/types/database.types"
 
 type ZoneInsert = Database["public"]["Tables"]["shipping_zones"]["Insert"]
 
-export const GET = withAuth(
+export const GET = withUserAuth(
   withRateLimit("api", { keyBy: "user" })(async (_req, { auth, params }) => {
     const storeId = params.id
     if (!storeId) return fail(new BadRequestError("Identifiant boutique requis."))
@@ -38,7 +38,7 @@ export const GET = withAuth(
   })
 )
 
-export const POST = withAuth(
+export const POST = withUserAuth(
   withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth, params }) => {
     const storeId = params.id
     if (!storeId) return fail(new BadRequestError("Identifiant boutique requis."))

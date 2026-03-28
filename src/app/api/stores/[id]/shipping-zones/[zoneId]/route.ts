@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server"
 import {
-  withAuth,
+  withUserAuth,
   withRateLimit,
   ok,
   fail,
@@ -18,7 +18,7 @@ import type { Database } from "@/types/database.types"
 
 type ZoneUpdate = Database["public"]["Tables"]["shipping_zones"]["Update"]
 
-export const PATCH = withAuth(
+export const PATCH = withUserAuth(
   withRateLimit("write", { keyBy: "user" })(async (req: NextRequest, { auth, params }) => {
     const storeId = params.id
     const zoneId = params.zoneId
@@ -79,7 +79,7 @@ export const PATCH = withAuth(
   })
 )
 
-export const DELETE = withAuth(
+export const DELETE = withUserAuth(
   withRateLimit("write", { keyBy: "user" })(async (_req, { auth, params }) => {
     const storeId = params.id
     const zoneId = params.zoneId
