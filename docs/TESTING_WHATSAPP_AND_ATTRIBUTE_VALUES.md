@@ -58,7 +58,12 @@ curl -s -X PATCH "$BASE/api/orders/ORDER_UUID" $COOKIES \
 
 2. **Expect:** `200` with updated order. Customer receives WhatsApp for **confirmed** then **shipped** (with optional tracking line) when plan allows.
 
-### A.3 Negative checks
+### A.3 Webhook entrant (parse + résumé)
+
+- **POST** `/api/webhooks/whatsapp` exige `X-Hub-Signature-256: sha256=<hmac>` (corps brut identique au payload signé avec `WHATSAPP_APP_SECRET`).
+- **Réponse** `200` avec JSON du type `{ "received": true, "recognized": true, "summary": { ... } }` (compteurs / champs `change`, types de messages — **sans** texte ni numéros). Si le JSON n’est pas reconnu : `recognized: false` et `issueCount`. En dev, un `console.info` du résumé est émis.
+
+### A.4 Negative checks
 
 - **Starter plan:** no WhatsApp sends (plan gate); checkout and PATCH still succeed.
 - **Invalid Meta token:** merchant/customer may not receive messages; server logs `[whatsapp] ...`; HTTP responses unchanged.
