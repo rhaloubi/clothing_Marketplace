@@ -69,6 +69,8 @@ export function getOpenApiDocument(): Record<string, unknown> {
     },
     servers: [{ url: "/", description: "Origine courante (dev)" }],
     tags: [
+      { name: "Profile", description: "Profil marchand (nom, téléphone, avatar)" },
+      { name: "Subscription", description: "Abonnement et changement de plan" },
       { name: "Stores", description: "Boutiques" },
       { name: "Shipping", description: "Zones de livraison par wilaya" },
       { name: "Wilayas", description: "Régions (référence)" },
@@ -82,6 +84,99 @@ export function getOpenApiDocument(): Record<string, unknown> {
       { name: "Webhooks", description: "Partenaires / Meta" },
     ],
     paths: {
+      "/api/profile": {
+        get: {
+          tags: ["Profile"],
+          summary: "Lire mon profil",
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": jsonOk,
+            "401": unauthorized,
+            "404": jsonError,
+            "429": rateLimited,
+          },
+        },
+        patch: {
+          tags: ["Profile"],
+          summary: "Mettre à jour mon profil",
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  minProperties: 1,
+                  properties: {
+                    full_name: { type: "string", minLength: 2, maxLength: 100 },
+                    phone: {
+                      oneOf: [
+                        { type: "string", pattern: "^(\\+212|0)[5-7][0-9]{8}$" },
+                        { type: "string", const: "" },
+                        { type: "null" },
+                      ],
+                      description: "Numéro marocain (+212… ou 0…), ou null/'' pour effacer",
+                    },
+                    avatar_url: {
+                      oneOf: [{ type: "string", format: "uri" }, { type: "string", const: "" }, { type: "null" }],
+                      description: "URL HTTPS ou null/'' pour effacer",
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "429": rateLimited,
+          },
+        },
+      },
+      "/api/subscription": {
+        get: {
+          tags: ["Subscription"],
+          summary: "Mon abonnement actuel (avec plan intégré)",
+          security: [{ cookieAuth: [] }],
+          responses: {
+            "200": jsonOk,
+            "401": unauthorized,
+            "404": jsonError,
+            "429": rateLimited,
+          },
+        },
+        patch: {
+          tags: ["Subscription"],
+          summary: "Changer de plan (upgrade ou downgrade)",
+          description:
+            "Vérifie les limites en cas de rétrogradation (boutiques / produits actifs). " +
+            "Stub facturation : réinitialise la période à +30 j depuis maintenant (remplacé par CMI).",
+          security: [{ cookieAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["plan_name"],
+                  properties: {
+                    plan_name: { type: "string", enum: ["starter", "growth", "pro"] },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": jsonOk,
+            "400": jsonError,
+            "401": unauthorized,
+            "404": jsonError,
+            "409": jsonError,
+            "429": rateLimited,
+          },
+        },
+      },
       "/api/stores": {
         get: {
           tags: ["Stores"],

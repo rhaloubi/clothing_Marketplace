@@ -33,6 +33,11 @@ const FEATURE_MIN_PLAN: Record<PlanFeature, PlanName> = {
 const PLAN_CACHE_TTL_MS = 15_000
 const planCache = new Map<string, { expiresAt: number; plan: PlanContext }>()
 
+/** Remove a cached plan entry — call after a subscription plan change so the next gated request loads fresh. */
+export function invalidatePlanCache(userId: string): void {
+  planCache.delete(userId)
+}
+
 function withTimingHeader(response: Response, key: string, ms: number): Response {
   const headers = new Headers(response.headers)
   headers.set(key, ms.toFixed(2))

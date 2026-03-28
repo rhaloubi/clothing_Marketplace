@@ -58,7 +58,69 @@ curl -s http://localhost:3000/api/wilayas
 
 ---
 
-## Step 1 — List stores (after login)
+## Step 1 — Profile
+
+### `GET /api/profile`
+
+- **Auth:** required
+- **Returns:** `id`, `full_name`, `phone`, `avatar_url`, `created_at`, `updated_at`.
+
+```bash
+curl -s -b "$COOKIE" http://localhost:3000/api/profile
+```
+
+### `PATCH /api/profile`
+
+- **Auth:** required
+- **Body:** partial — at least one field.
+
+| Field        | Type          | Notes                                       |
+| ------------ | ------------- | ------------------------------------------- |
+| `full_name`  | string        | 2–100 chars                                 |
+| `phone`      | string\|null  | Moroccan format (`+212…` / `0…`) or `""` to clear |
+| `avatar_url` | string\|null  | HTTPS URL or `""` to clear                 |
+
+```bash
+curl -s -X PATCH -b "$COOKIE" http://localhost:3000/api/profile \
+  -H "Content-Type: application/json" \
+  -d '{"full_name":"Omar Marchand","phone":"0661234567"}'
+```
+
+---
+
+## Step 1b — Subscription
+
+### `GET /api/subscription`
+
+- **Auth:** required
+- **Returns:** current subscription row with embedded `plans` row.
+
+```bash
+curl -s -b "$COOKIE" http://localhost:3000/api/subscription
+```
+
+### `PATCH /api/subscription`
+
+- **Auth:** required
+- **Body:** `{ "plan_name": "starter" | "growth" | "pro" }`.
+- **Downgrade guard:** returns `409` if active products or store count exceeds the target plan limit.
+- **Billing stub:** resets `current_period_start`/`end` to now + 30 days on every change.
+
+```bash
+# Upgrade to growth
+curl -s -X PATCH -b "$COOKIE" http://localhost:3000/api/subscription \
+  -H "Content-Type: application/json" \
+  -d '{"plan_name":"growth"}'
+
+# Downgrade to starter (fails with 409 if >50 active products or >1 store)
+curl -s -X PATCH -b "$COOKIE" http://localhost:3000/api/subscription \
+  -H "Content-Type: application/json" \
+  -d '{"plan_name":"starter"}'
+```
+
+---
+
+## Step 2 — List stores (after login)
 
 ### `GET /api/stores`
 

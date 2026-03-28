@@ -393,3 +393,44 @@ export const deliveryStatusUpdateSchema = z.object({
   status: orderStatusSchema,
   tracking_number: z.string().max(100).optional().nullable(),
 })
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+
+/**
+ * PATCH /api/profile — at least one field required.
+ * phone accepts Moroccan format (+212… or 0…) or null/empty string (clears to null).
+ * avatar_url accepts a URL or null/empty string (clears to null).
+ */
+export const patchProfileSchema = z
+  .object({
+    full_name: z
+      .string()
+      .min(2, "Le nom doit contenir au moins 2 caractères")
+      .max(100)
+      .optional(),
+    phone: z
+      .string()
+      .regex(/^(\+212|0)[5-7][0-9]{8}$/, "Numéro de téléphone marocain invalide")
+      .optional()
+      .nullable()
+      .or(z.literal("").transform(() => null)),
+    avatar_url: z
+      .string()
+      .url("URL d'avatar invalide")
+      .optional()
+      .nullable()
+      .or(z.literal("").transform(() => null)),
+  })
+  .refine((d) => Object.keys(d).length > 0, { message: "Au moins un champ est requis" })
+
+export type PatchProfileInput = z.infer<typeof patchProfileSchema>
+
+// ─── Subscription plan ────────────────────────────────────────────────────────
+
+export const updateSubscriptionPlanSchema = z.object({
+  plan_name: z.enum(["starter", "growth", "pro"], {
+    errorMap: () => ({ message: "Plan invalide. Valeurs : starter, growth, pro." }),
+  }),
+})
+
+export type UpdateSubscriptionPlanInput = z.infer<typeof updateSubscriptionPlanSchema>

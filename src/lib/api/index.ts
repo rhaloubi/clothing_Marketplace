@@ -45,6 +45,7 @@ export {
   withPlan,
   assertProductLimit,
   assertStoreLimit,
+  invalidatePlanCache,
   type PlanFeature,
   type PlanContext,
 } from "./with-plan"
