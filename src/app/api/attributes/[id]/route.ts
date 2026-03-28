@@ -11,7 +11,6 @@ import {
 } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
 import { updateAttributeDefinitionSchema } from "@/lib/validations"
-import { assertStoreOwnership } from "@/lib/utils"
 import type { Database } from "@/types/database.types"
 
 type DefUpdate = Database["public"]["Tables"]["attribute_definitions"]["Update"]
@@ -22,20 +21,15 @@ export const GET = withUserAuth(
     if (!id) return fail(new BadRequestError("Identifiant attribut requis."))
     const supabase = await createClient()
 
+    // Single query: verify attribute exists AND belongs to a store owned by this user
     const { data: def, error: dErr } = await supabase
       .from("attribute_definitions")
-      .select("*")
+      .select("*, stores!inner(user_id)")
       .eq("id", id)
-      .maybeSingle()
+      .eq("stores.user_id", auth.user.id)
+      .single()
 
-    if (dErr) return fail(dErr)
-    if (!def) return fail(new NotFoundError("Attribut"))
-
-    try {
-      await assertStoreOwnership(supabase, def.store_id, auth.user.id)
-    } catch (err) {
-      return fail(err)
-    }
+    if (dErr ?? !def) return fail(new NotFoundError("Attribut"))
 
     const { data: vals, error: vErr } = await supabase
       .from("attribute_values")
@@ -65,20 +59,16 @@ export const PATCH = withUserAuth(
     }
 
     const supabase = await createClient()
+
+    // Single query: verify attribute exists AND belongs to a store owned by this user
     const { data: existing, error: exErr } = await supabase
       .from("attribute_definitions")
-      .select("*")
+      .select("*, stores!inner(user_id)")
       .eq("id", id)
-      .maybeSingle()
+      .eq("stores.user_id", auth.user.id)
+      .single()
 
-    if (exErr) return fail(exErr)
-    if (!existing) return fail(new NotFoundError("Attribut"))
-
-    try {
-      await assertStoreOwnership(supabase, existing.store_id, auth.user.id)
-    } catch (err) {
-      return fail(err)
-    }
+    if (exErr ?? !existing) return fail(new NotFoundError("Attribut"))
 
     const patch = parsed.data
     const updateRow: DefUpdate = {}
@@ -115,20 +105,15 @@ export const DELETE = withUserAuth(
     if (!id) return fail(new BadRequestError("Identifiant attribut requis."))
     const supabase = await createClient()
 
+    // Single query: verify attribute exists AND belongs to a store owned by this user
     const { data: existing, error: exErr } = await supabase
       .from("attribute_definitions")
-      .select("store_id")
+      .select("id, stores!inner(user_id)")
       .eq("id", id)
-      .maybeSingle()
+      .eq("stores.user_id", auth.user.id)
+      .single()
 
-    if (exErr) return fail(exErr)
-    if (!existing) return fail(new NotFoundError("Attribut"))
-
-    try {
-      await assertStoreOwnership(supabase, existing.store_id, auth.user.id)
-    } catch (err) {
-      return fail(err)
-    }
+    if (exErr ?? !existing) return fail(new NotFoundError("Attribut"))
 
     const { error } = await supabase.from("attribute_definitions").delete().eq("id", id)
     if (error) return fail(error)

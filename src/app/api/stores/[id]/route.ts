@@ -12,7 +12,6 @@ import {
 } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
 import { updateStoreSchema } from "@/lib/validations"
-import { assertStoreOwnership } from "@/lib/utils"
 import type { Database } from "@/types/database.types"
 
 type StoreUpdate = Database["public"]["Tables"]["stores"]["Update"]
@@ -23,13 +22,13 @@ export const GET = withUserAuth(
     if (!id) return fail(new BadRequestError("Identifiant boutique requis."))
 
     const supabase = await createClient()
-    try {
-      await assertStoreOwnership(supabase, id, auth.user.id)
-    } catch (err) {
-      return fail(err)
-    }
+    const { data, error } = await supabase
+      .from("stores")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", auth.user.id)
+      .single()
 
-    const { data, error } = await supabase.from("stores").select("*").eq("id", id).single()
     if (error ?? !data) return fail(new NotFoundError("Boutique"))
     return ok(data)
   })
@@ -52,11 +51,14 @@ export const PATCH = withUserAuth(
     }
 
     const supabase = await createClient()
-    try {
-      await assertStoreOwnership(supabase, id, auth.user.id)
-    } catch (err) {
-      return fail(err)
-    }
+    const { data: store, error: ownerErr } = await supabase
+      .from("stores")
+      .select("id")
+      .eq("id", id)
+      .eq("user_id", auth.user.id)
+      .single()
+
+    if (ownerErr ?? !store) return fail(new NotFoundError("Boutique"))
 
     const patch = parsed.data
     if (Object.keys(patch).length === 0) {
@@ -95,11 +97,14 @@ export const DELETE = withUserAuth(
     if (!id) return fail(new BadRequestError("Identifiant boutique requis."))
 
     const supabase = await createClient()
-    try {
-      await assertStoreOwnership(supabase, id, auth.user.id)
-    } catch (err) {
-      return fail(err)
-    }
+    const { data: store, error: ownerErr } = await supabase
+      .from("stores")
+      .select("id")
+      .eq("id", id)
+      .eq("user_id", auth.user.id)
+      .single()
+
+    if (ownerErr ?? !store) return fail(new NotFoundError("Boutique"))
 
     const { error } = await supabase.from("stores").delete().eq("id", id)
     if (error) {

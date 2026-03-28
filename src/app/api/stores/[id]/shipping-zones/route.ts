@@ -7,10 +7,10 @@ import {
   BadRequestError,
   ValidationError,
   ConflictError,
+  NotFoundError,
 } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
 import { shippingZoneSchema } from "@/lib/validations"
-import { assertStoreOwnership } from "@/lib/utils"
 import type { Database } from "@/types/database.types"
 
 type ZoneInsert = Database["public"]["Tables"]["shipping_zones"]["Insert"]
@@ -21,11 +21,14 @@ export const GET = withUserAuth(
     if (!storeId) return fail(new BadRequestError("Identifiant boutique requis."))
 
     const supabase = await createClient()
-    try {
-      await assertStoreOwnership(supabase, storeId, auth.user.id)
-    } catch (err) {
-      return fail(err)
-    }
+    const { data: store, error: ownerErr } = await supabase
+      .from("stores")
+      .select("id")
+      .eq("id", storeId)
+      .eq("user_id", auth.user.id)
+      .single()
+
+    if (ownerErr ?? !store) return fail(new NotFoundError("Boutique"))
 
     const { data, error } = await supabase
       .from("shipping_zones")
@@ -55,11 +58,14 @@ export const POST = withUserAuth(
     }
 
     const supabase = await createClient()
-    try {
-      await assertStoreOwnership(supabase, storeId, auth.user.id)
-    } catch (err) {
-      return fail(err)
-    }
+    const { data: store, error: ownerErr } = await supabase
+      .from("stores")
+      .select("id")
+      .eq("id", storeId)
+      .eq("user_id", auth.user.id)
+      .single()
+
+    if (ownerErr ?? !store) return fail(new NotFoundError("Boutique"))
 
     const row: ZoneInsert = {
       store_id: storeId,

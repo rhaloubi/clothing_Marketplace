@@ -10,7 +10,6 @@ import {
 } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
 import { productVariantSchema } from "@/lib/validations"
-import { assertStoreOwnership } from "@/lib/utils"
 import { assertAttributeValuesBelongToStore } from "@/lib/server/catalog"
 import type { Database } from "@/types/database.types"
 
@@ -23,20 +22,15 @@ export const GET = withUserAuth(
     if (!productId) return fail(new BadRequestError("Identifiant produit requis."))
     const supabase = await createClient()
 
+    // Single query: verify product exists AND belongs to a store owned by this user
     const { data: product, error: pErr } = await supabase
       .from("products")
-      .select("store_id")
+      .select("id, stores!inner(user_id)")
       .eq("id", productId)
-      .maybeSingle()
+      .eq("stores.user_id", auth.user.id)
+      .single()
 
-    if (pErr) return fail(pErr)
-    if (!product) return fail(new NotFoundError("Produit"))
-
-    try {
-      await assertStoreOwnership(supabase, product.store_id, auth.user.id)
-    } catch (err) {
-      return fail(err)
-    }
+    if (pErr ?? !product) return fail(new NotFoundError("Produit"))
 
     const { data: variants, error: vErr } = await supabase
       .from("product_variants")
@@ -65,20 +59,16 @@ export const POST = withUserAuth(
     }
 
     const supabase = await createClient()
+
+    // Single query: verify product exists AND belongs to a store owned by this user; get store_id for downstream checks
     const { data: product, error: pErr } = await supabase
       .from("products")
-      .select("store_id")
+      .select("id, store_id, stores!inner(user_id)")
       .eq("id", productId)
-      .maybeSingle()
+      .eq("stores.user_id", auth.user.id)
+      .single()
 
-    if (pErr) return fail(pErr)
-    if (!product) return fail(new NotFoundError("Produit"))
-
-    try {
-      await assertStoreOwnership(supabase, product.store_id, auth.user.id)
-    } catch (err) {
-      return fail(err)
-    }
+    if (pErr ?? !product) return fail(new NotFoundError("Produit"))
 
     try {
       await assertAttributeValuesBelongToStore(

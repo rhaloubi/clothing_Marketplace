@@ -12,7 +12,7 @@ import {
 } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
 import { updateProductSchema } from "@/lib/validations"
-import { assertStoreOwnership, generateSlug } from "@/lib/utils"
+import { generateSlug } from "@/lib/utils"
 import { fetchProductWithVariants } from "@/lib/server/catalog"
 import type { Database } from "@/types/database.types"
 
@@ -24,20 +24,15 @@ export const GET = withUserAuth(
     if (!id) return fail(new BadRequestError("Identifiant produit requis."))
     const supabase = await createClient()
 
+    // Single query: verify product exists AND belongs to a store owned by this user
     const { data: product, error: pErr } = await supabase
       .from("products")
-      .select("store_id")
+      .select("id, stores!inner(user_id)")
       .eq("id", id)
-      .maybeSingle()
+      .eq("stores.user_id", auth.user.id)
+      .single()
 
-    if (pErr) return fail(pErr)
-    if (!product) return fail(new NotFoundError("Produit"))
-
-    try {
-      await assertStoreOwnership(supabase, product.store_id, auth.user.id)
-    } catch (err) {
-      return fail(err)
-    }
+    if (pErr ?? !product) return fail(new NotFoundError("Produit"))
 
     try {
       const full = await fetchProductWithVariants(supabase, id)
@@ -65,20 +60,16 @@ export const PATCH = withUserAuth(
     }
 
     const supabase = await createClient()
+
+    // Load full product row + verify ownership in one query
     const { data: existing, error: exErr } = await supabase
       .from("products")
-      .select("*")
+      .select("*, stores!inner(user_id)")
       .eq("id", id)
-      .maybeSingle()
+      .eq("stores.user_id", auth.user.id)
+      .single()
 
-    if (exErr) return fail(exErr)
-    if (!existing) return fail(new NotFoundError("Produit"))
-
-    try {
-      await assertStoreOwnership(supabase, existing.store_id, auth.user.id)
-    } catch (err) {
-      return fail(err)
-    }
+    if (exErr ?? !existing) return fail(new NotFoundError("Produit"))
 
     const patch = parsed.data
     const updateRow: ProductUpdate = {}
@@ -127,20 +118,15 @@ export const DELETE = withUserAuth(
     if (!id) return fail(new BadRequestError("Identifiant produit requis."))
     const supabase = await createClient()
 
+    // Single query: verify product exists AND belongs to a store owned by this user
     const { data: existing, error: exErr } = await supabase
       .from("products")
-      .select("store_id")
+      .select("id, stores!inner(user_id)")
       .eq("id", id)
-      .maybeSingle()
+      .eq("stores.user_id", auth.user.id)
+      .single()
 
-    if (exErr) return fail(exErr)
-    if (!existing) return fail(new NotFoundError("Produit"))
-
-    try {
-      await assertStoreOwnership(supabase, existing.store_id, auth.user.id)
-    } catch (err) {
-      return fail(err)
-    }
+    if (exErr ?? !existing) return fail(new NotFoundError("Produit"))
 
     const { error } = await supabase.from("products").delete().eq("id", id)
     if (error) return fail(error)

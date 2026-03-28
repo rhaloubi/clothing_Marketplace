@@ -12,8 +12,6 @@ import {
 import { createClient } from "@/lib/supabase/server"
 import type { ZodIssue } from "zod"
 import { updateShippingZoneSchema } from "@/lib/validations"
-import { assertStoreOwnership } from "@/lib/utils"
-import { assertShippingZoneInStore } from "@/lib/server/shipping"
 import type { Database } from "@/types/database.types"
 
 type ZoneUpdate = Database["public"]["Tables"]["shipping_zones"]["Update"]
@@ -40,12 +38,17 @@ export const PATCH = withUserAuth(
     }
 
     const supabase = await createClient()
-    try {
-      await assertStoreOwnership(supabase, storeId, auth.user.id)
-      await assertShippingZoneInStore(supabase, zoneId, storeId)
-    } catch (err) {
-      return fail(err)
-    }
+
+    // Single query verifies: (1) zone exists, (2) zone belongs to store, (3) store belongs to user
+    const { data: zone, error: ownerErr } = await supabase
+      .from("shipping_zones")
+      .select("id, stores!inner(user_id)")
+      .eq("id", zoneId)
+      .eq("store_id", storeId)
+      .eq("stores.user_id", auth.user.id)
+      .single()
+
+    if (ownerErr ?? !zone) return fail(new NotFoundError("Zone de livraison"))
 
     const patch = parsed.data
     const row: ZoneUpdate = {}
@@ -88,12 +91,17 @@ export const DELETE = withUserAuth(
     }
 
     const supabase = await createClient()
-    try {
-      await assertStoreOwnership(supabase, storeId, auth.user.id)
-      await assertShippingZoneInStore(supabase, zoneId, storeId)
-    } catch (err) {
-      return fail(err)
-    }
+
+    // Single query verifies: (1) zone exists, (2) zone belongs to store, (3) store belongs to user
+    const { data: zone, error: ownerErr } = await supabase
+      .from("shipping_zones")
+      .select("id, stores!inner(user_id)")
+      .eq("id", zoneId)
+      .eq("store_id", storeId)
+      .eq("stores.user_id", auth.user.id)
+      .single()
+
+    if (ownerErr ?? !zone) return fail(new NotFoundError("Zone de livraison"))
 
     const { error } = await supabase.from("shipping_zones").delete().eq("id", zoneId)
     if (error) return fail(error)

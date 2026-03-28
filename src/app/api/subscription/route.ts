@@ -104,8 +104,8 @@ export const PATCH = withUserAuth(
 
     if (updateErr) return fail(updateErr)
 
-    // Invalidate the in-memory plan cache so the next gated route loads the new plan immediately
-    invalidatePlanCache(auth.user.id)
+    // Invalidate the Redis plan cache so the next gated route loads the new plan immediately
+    await invalidatePlanCache(auth.user.id)
 
     return ok(updated)
   })

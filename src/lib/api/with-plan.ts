@@ -30,12 +30,44 @@ const FEATURE_MIN_PLAN: Record<PlanFeature, PlanName> = {
   has_api:           "pro",
 }
 
-const PLAN_CACHE_TTL_MS = 15_000
-const planCache = new Map<string, { expiresAt: number; plan: PlanContext }>()
+// ─── Redis plan cache helpers ─────────────────────────────────────────────────
+// Cache key: plan:{userId}  TTL: 60 s
+// Uses the same Upstash REST pipeline pattern as rate-limit.ts.
+// All helpers fail open (null / no-op) when Redis is unconfigured or errors.
+
+async function redisPipelineOnce(commands: unknown[][]): Promise<unknown[] | null> {
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  if (!url || !token) return null
+  try {
+    const res = await fetch(`${url}/pipeline`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(commands),
+    })
+    if (!res.ok) return null
+    const rows = await res.json() as Array<{ result: unknown }>
+    return rows.map((r) => r.result)
+  } catch {
+    return null
+  }
+}
+
+async function redisPlanGet(userId: string): Promise<PlanContext | null> {
+  const results = await redisPipelineOnce([["GET", `plan:${userId}`]])
+  if (!results) return null
+  const raw = results[0]
+  if (typeof raw !== "string") return null
+  try { return JSON.parse(raw) as PlanContext } catch { return null }
+}
+
+async function redisPlanSet(userId: string, plan: PlanContext): Promise<void> {
+  await redisPipelineOnce([["SET", `plan:${userId}`, JSON.stringify(plan), "EX", 60]])
+}
 
 /** Remove a cached plan entry — call after a subscription plan change so the next gated request loads fresh. */
-export function invalidatePlanCache(userId: string): void {
-  planCache.delete(userId)
+export async function invalidatePlanCache(userId: string): Promise<void> {
+  await redisPipelineOnce([["DEL", `plan:${userId}`]])
 }
 
 function withTimingHeader(response: Response, key: string, ms: number): Response {
@@ -99,10 +131,10 @@ export function withPlan(requiredFeature?: PlanFeature) {
       const startedAt = performance.now()
       try {
         const userId = context.auth.user.id
-        const now = Date.now()
-        const cached = planCache.get(userId)
-        if (cached && cached.expiresAt > now) {
-          if (requiredFeature && !cached.plan.features[requiredFeature]) {
+
+        const cached = await redisPlanGet(userId)
+        if (cached) {
+          if (requiredFeature && !cached.features[requiredFeature]) {
             const requiredPlan = FEATURE_MIN_PLAN[requiredFeature]
             return withTimingHeader(
               fail(new PlanUpgradeRequiredError(requiredPlan)),
@@ -114,7 +146,7 @@ export function withPlan(requiredFeature?: PlanFeature) {
             ...context,
             auth: {
               ...context.auth,
-              plan: cached.plan,
+              plan: cached,
             },
           })
           return withTimingHeader(response, "X-Plan-ms", performance.now() - startedAt)
@@ -181,10 +213,8 @@ export function withPlan(requiredFeature?: PlanFeature) {
             has_api:           plan.has_api,
           },
         }
-        planCache.set(userId, {
-          plan: planContext,
-          expiresAt: now + PLAN_CACHE_TTL_MS,
-        })
+        // Fire-and-forget — cache miss is not fatal
+        void redisPlanSet(userId, planContext)
 
         // Feature gate check
         if (requiredFeature && !planContext.features[requiredFeature]) {

@@ -568,10 +568,16 @@ Plan enforcement uses `withPlan()` wrapper + `assertProductLimit()` / `assertSto
 - **Upload** : `api/upload` + URLs signées Supabase Storage
 - **Webhooks** : `api/webhooks/whatsapp`, `api/webhooks/delivery`
 - **Cron** : `api/cron/subscription-check` (abonnements → `expired`)
+- **Profile** : `api/profile` GET + PATCH (nom, téléphone, avatar — RLS `profiles_update_own`)
+- **Subscription** : `api/subscription` GET + PATCH (upgrade/downgrade + downgrade guards + cache Redis)
+- **WhatsApp outbound** : notification marchand à la commande (fallback template `hello_world` en dev)
+- **WhatsApp inbound** : parsing payload Meta dans `lib/whatsapp/inbound-webhook.ts`
+- **Attribute values CRUD** : `api/attributes/[id]/values` (POST/PATCH/DELETE)
+- **Performance** : `vercel.json` région `lhr1`, plan cache Redis 60 s, ownership checks en une seule query
 
 ### ← TODO (hors périmètre backend routes ci-dessus)
 - Brancher l’UI storefront / dashboard sur les nouvelles routes (appels `fetch`, etc.)
-- Intégration réelle WhatsApp (parser les payloads Meta, envoi auto à la commande)
+- Réagir aux messages WhatsApp entrants (ex. statut commande par le marchand via WhatsApp)
 - Politiques Storage Supabase fines (chemins par `user_id` / `store_id` déjà préfixés côté API)
 - Paiement / CMI plus tard ; domaines personnalisés ; staff / API Pro
 
