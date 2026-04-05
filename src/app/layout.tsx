@@ -4,7 +4,8 @@ import { type Metadata } from "next";
 import { Geist } from "next/font/google";
 
 export const metadata: Metadata = {
-
+  title: "Shri — Marketplace marocain",
+  description: "Créez et gérez votre boutique en ligne.",
 };
 
 const geist = Geist({
@@ -16,7 +17,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geist.variable}`}>
+    <html lang="fr" className={`${geist.variable}`}>
       <body>{children}</body>
     </html>
   );

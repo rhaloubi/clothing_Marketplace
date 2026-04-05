@@ -2,46 +2,55 @@
 
 Order follows foundation first (fetch, auth behavior, routing), then data surfaces, then polish.
 
-## Phase 0 — Done (this pass)
+## Phase 0 — Done
 
+| Item | Location |
+|------|----------|
+| Typed API client + `ApiClientError` | `src/lib/api-client.ts` |
+| Login redirect helper (expired session) | `src/lib/auth/redirect-to-login.ts` |
+| `store` query param parsing (UUID) | `src/lib/dashboard/search-params.ts` |
+| TanStack Query keys | `src/lib/query-keys.ts` |
+| Query provider + devtools (dev only) | `src/components/shared/query-provider.tsx` |
+| `useStoreSearchParam` hook | `src/hooks/use-store-search-param.ts` |
 
-| Item                                    | Location                                                                                  |
-| --------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Typed API client + `ApiClientError`     | `[src/lib/api-client.ts](../src/lib/api-client.ts)`                                       |
-| Login redirect helper (expired session) | `[src/lib/auth/redirect-to-login.ts](../src/lib/auth/redirect-to-login.ts)`               |
-| `store` query param parsing (UUID)      | `[src/lib/dashboard/search-params.ts](../src/lib/dashboard/search-params.ts)`             |
-| TanStack Query keys                     | `[src/lib/query-keys.ts](../src/lib/query-keys.ts)`                                       |
-| Query provider + devtools (dev only)    | `[src/components/shared/query-provider.tsx](../src/components/shared/query-provider.tsx)` |
-| `useStoreSearchParam` hook              | `[src/hooks/use-store-search-param.ts](../src/hooks/use-store-search-param.ts)`           |
-| `(dashboard)` layout + placeholder home | `[src/app/(dashboard)/](../src/app/(dashboard)`/)                                         |
+## Phase 1 — Done
 
+| Item | Location |
+|------|----------|
+| `/login` page + `LoginForm` (RHF + `apiFetch`) | `src/app/(auth)/login/` |
+| `/signup` page + `SignupForm` (RHF + `apiFetch`) | `src/app/(auth)/signup/` |
+| Dashboard shell (sidebar + mobile Sheet header) | `src/components/dashboard/shell/dashboard-shell.tsx` |
+| Nav links preserving `?store=` | `src/components/dashboard/shell/nav-links.tsx` |
+| Store switcher dropdown | `src/components/dashboard/shell/store-switcher.tsx` |
+| User menu (logout → /login) | `src/components/dashboard/shell/user-menu.tsx` |
+| Dashboard layout: auth guard + stores + shell | `src/app/(dashboard)/layout.tsx` |
+| Dashboard home: auto-redirect / empty state | `src/app/(dashboard)/page.tsx` |
+| `usePatchOrderStatus` mutation hook | `src/hooks/use-patch-order-status.ts` |
+| shadcn/ui init + all UI components | `src/components/ui/` |
 
-## Phase 1 — Auth pages + navigation shell
+**Note — @base-ui:** shadcn Nova preset uses `@base-ui`, not Radix.
+No `asChild` prop exists. Style triggers directly with `buttonVariants` className.
 
-1. `**/login` and `/signup` pages** (middleware already references them; currently missing).
-2. **Dashboard chrome**: sidebar / header (mobile Sheet), nav links **always** preserving `?store=`.
-3. **Store picker**: if `store` missing, list user’s stores (Server Component + Supabase) and set URL or redirect to first store.
-4. `**apiFetch` usage in mutations**: e.g. patch order status with `invalidateQueries` + `queryKeys`.
+## Phase 2 — Core CRUD surfaces (next)
 
-## Phase 2 — Core CRUD surfaces
-
-1. **Orders** — list (RSC) + table client mutations (status) + detail.
-2. **Products** — list, create/edit forms (`react-hook-form` + `@/lib/validations` + `apiFetch`).
-3. **Store settings** — store PATCH, shipping zones.
+1. **Orders** — list page (RSC reads Supabase) + `OrdersTable` client (status mutation via `usePatchOrderStatus`) + order detail.
+2. **Products** — list, create form (`react-hook-form` + `createProductSchema` + `apiFetch POST /api/products`), edit form.
+3. **Store settings** — store PATCH form, shipping zones list + add/edit.
+4. **Create store** — `/dashboard/stores/new` form (wires to `POST /api/stores`).
 
 ## Phase 3 — Growth features
 
-1. **Analytics** (plan-gated UI mirroring `withPlan("has_analytics")`).
-2. **Subscription / profile** — wire to existing `/api/subscription`, `/api/profile`.
+1. **Analytics** — plan-gated with `has_analytics`; charts via Recharts; wire `GET /api/analytics/*`.
+2. **Subscription / profile** — `/api/subscription`, `/api/profile`.
 
 ## Phase 4 — i18n + UX hardening
 
-1. `**next-intl`**: `messages/fr.json`, `messages/en.json`; Arabic + RTL later per rules.
-2. Toasts (Sonner), skeletons, empty states per `ux-rules.mdc`.
+1. **`next-intl`** — `messages/fr.json`, `messages/en.json`; Arabic + RTL deferred.
+2. Skeletons on data loads, empty states per `ux-rules.mdc`.
 
 ## Conventions (quick reference)
 
 - **Reads**: Server Components + `await createClient()` + Supabase (no `apiFetch`).
-- **Writes**: Client `apiFetch` / `fetch` with `credentials: "include"`.
-- **Active store**: `?store=<uuid>` only — see `[useStoreSearchParam](../src/hooks/use-store-search-param.ts)`.
-
+- **Writes**: Client `apiFetch` with `credentials: "include"` (default) via `src/lib/api-client.ts`.
+- **Active store**: `?store=<uuid>` in URL only — `parseStoreId()` on server, `useStoreSearchParam()` on client.
+- **Mutations**: `useMutation` from TanStack Query, invalidate via `queryKeys.*` on success.
