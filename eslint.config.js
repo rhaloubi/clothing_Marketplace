@@ -36,6 +36,13 @@ export default tseslint.config(
     },
   },
   {
+    files: ["src/types/database.types.ts"],
+    rules: {
+      "@typescript-eslint/consistent-indexed-object-style": "off",
+      "@typescript-eslint/no-redundant-type-constituents": "off",
+    },
+  },
+  {
     linterOptions: {
       reportUnusedDisableDirectives: true,
     },

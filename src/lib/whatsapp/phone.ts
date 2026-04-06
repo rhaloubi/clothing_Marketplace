@@ -3,7 +3,8 @@
  */
 export function toWhatsAppRecipientDigits(phone: string): string | null {
   const trimmed = phone.trim()
-  const m = trimmed.match(/^(\+212|0)([5-7][0-9]{8})$/)
+  const moroccanPhonePattern = /^(\+212|0)([5-7][0-9]{8})$/
+  const m = moroccanPhonePattern.exec(trimmed)
   if (!m) return null
   return `212${m[2]}`
 }

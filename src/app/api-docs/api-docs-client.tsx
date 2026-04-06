@@ -24,6 +24,7 @@ export function ApiDocsClient() {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    const rootEl = containerRef.current
     const link = document.createElement("link")
     link.rel = "stylesheet"
     link.href = CSS
@@ -35,7 +36,7 @@ export function ApiDocsClient() {
 
     script.onload = () => {
       const bundle = window.SwaggerUIBundle
-      if (!bundle || !containerRef.current) return
+      if (!bundle || !rootEl) return
 
       bundle({
         url: "/api/openapi.json",
@@ -52,7 +53,7 @@ export function ApiDocsClient() {
     return () => {
       link.remove()
       script.remove()
-      if (containerRef.current) containerRef.current.innerHTML = ""
+      if (rootEl) rootEl.innerHTML = ""
     }
   }, [])
 

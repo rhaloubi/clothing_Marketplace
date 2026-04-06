@@ -4,7 +4,7 @@ import { parseStoreId } from "@/lib/dashboard"
 import { PlusCircle, Store } from "lucide-react"
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
 type SearchParams = Promise<{ store?: string }>
@@ -48,7 +48,7 @@ export default async function DashboardPage({
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">{store.name}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Vue d'ensemble de votre boutique
+          Vue d&apos;ensemble de votre boutique
         </p>
       </div>
 
