@@ -22,12 +22,13 @@ import {
   cn,
   formatDateTime,
   formatPrice,
-  ORDER_STATUS_COLORS,
-  ORDER_STATUS_LABELS,
+  getOrderStatusColor,
+  getOrderStatusLabel,
+  normalizeOrderStatus,
 } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { OrderStatusSelect } from "@/components/dashboard/orders/order-status-select"
-import type { OrderItem, OrderStatus } from "@/types"
+import type { OrderItem } from "@/types"
 
 type PageParams = Promise<{ id: string }>
 type SearchParams = Promise<{ store?: string }>
@@ -59,7 +60,8 @@ export default async function OrderDetailPage({
   if (error || !order) notFound()
 
   const items = (order.order_items ?? []) as OrderItem[]
-  const orderStatus = order.status as OrderStatus
+  const orderStatus = String(order.status)
+  const canEditStatus = normalizeOrderStatus(orderStatus) !== null
 
   return (
     <div className="space-y-6 p-6">
@@ -81,11 +83,20 @@ export default async function OrderDetailPage({
         <div className="flex items-center gap-2">
           <Badge
             variant="outline"
-            className={cn("rounded-full px-2.5 py-1", ORDER_STATUS_COLORS[orderStatus])}
+            className={cn("rounded-full px-2.5 py-1", getOrderStatusColor(orderStatus))}
           >
-            {ORDER_STATUS_LABELS[orderStatus]}
+            {getOrderStatusLabel(orderStatus)}
           </Badge>
-          <OrderStatusSelect orderId={order.id} storeId={storeId} status={orderStatus} />
+          {canEditStatus ? (
+            <OrderStatusSelect
+              orderId={order.id}
+              storeId={storeId}
+              status={orderStatus}
+              refreshOnSuccess
+            />
+          ) : (
+            <span className="text-sm text-muted-foreground">Statut non editable</span>
+          )}
         </div>
       </div>
 

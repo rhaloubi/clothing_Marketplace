@@ -298,8 +298,8 @@ export const orderStatusSchema = z.enum([
 export const listOrdersQuerySchema = z.object({
   store_id: z.string().uuid("Boutique requise"),
   status: orderStatusSchema.optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(100, "Maximum 100 elements"),
+  offset: z.coerce.number().int().min(0, "Offset invalide"),
 })
 
 export type ListOrdersQuery = z.infer<typeof listOrdersQuerySchema>

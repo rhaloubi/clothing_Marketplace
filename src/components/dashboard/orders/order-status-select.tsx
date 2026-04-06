@@ -9,45 +9,53 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { usePatchOrderStatus } from "@/hooks"
+import { ORDER_STATUS_LABELS, normalizeOrderStatus } from "@/lib/utils"
 import type { OrderStatus } from "@/types"
 
 const STATUS_OPTIONS: Array<{ value: OrderStatus; label: string }> = [
-  { value: "pending", label: "En attente" },
-  { value: "confirmed", label: "Confirmée" },
-  { value: "shipped", label: "Expédiée" },
-  { value: "delivered", label: "Livrée" },
-  { value: "returned", label: "Retournée" },
-  { value: "cancelled", label: "Annulée" },
+  { value: "pending", label: ORDER_STATUS_LABELS.pending },
+  { value: "confirmed", label: ORDER_STATUS_LABELS.confirmed },
+  { value: "shipped", label: ORDER_STATUS_LABELS.shipped },
+  { value: "delivered", label: ORDER_STATUS_LABELS.delivered },
+  { value: "returned", label: ORDER_STATUS_LABELS.returned },
+  { value: "cancelled", label: ORDER_STATUS_LABELS.cancelled },
 ]
 
 interface OrderStatusSelectProps {
   orderId: string
   storeId: string
-  status: OrderStatus
+  status: string
+  onStatusUpdated?: (status: OrderStatus) => void
+  refreshOnSuccess?: boolean
 }
 
 export function OrderStatusSelect({
   orderId,
   storeId,
   status,
+  onStatusUpdated,
+  refreshOnSuccess = false,
 }: OrderStatusSelectProps) {
   const router = useRouter()
   const patchOrderStatus = usePatchOrderStatus()
+  const normalizedStatus = normalizeOrderStatus(status) ?? "pending"
 
   return (
     <Select
-      value={status}
+      value={normalizedStatus}
       onValueChange={(nextValue) => {
         if (!nextValue) return
-        const isKnownStatus = STATUS_OPTIONS.some((option) => option.value === nextValue)
-        if (!isKnownStatus) return
-        const nextStatus = nextValue
-        if (nextStatus === status) return
+        const nextStatus = normalizeOrderStatus(nextValue)
+        if (!nextStatus) return
+        if (nextStatus === normalizedStatus) return
         patchOrderStatus.mutate(
           { orderId, status: nextStatus, storeId },
           {
             onSuccess: () => {
-              router.refresh()
+              onStatusUpdated?.(nextStatus)
+              if (refreshOnSuccess) {
+                router.refresh()
+              }
             },
           }
         )

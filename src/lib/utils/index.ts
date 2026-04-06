@@ -143,6 +143,37 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   cancelled: "bg-red-100 text-red-800",
 }
 
+const ORDER_STATUS_ALIAS: Record<string, OrderStatus> = {
+  canceled: "cancelled",
+}
+
+export function normalizeOrderStatus(status: string): OrderStatus | null {
+  const normalized = ORDER_STATUS_ALIAS[status] ?? status
+  if (
+    normalized === "pending" ||
+    normalized === "confirmed" ||
+    normalized === "shipped" ||
+    normalized === "delivered" ||
+    normalized === "returned" ||
+    normalized === "cancelled"
+  ) {
+    return normalized
+  }
+  return null
+}
+
+export function getOrderStatusLabel(status: string): string {
+  const normalized = normalizeOrderStatus(status)
+  if (!normalized) return "Statut inconnu"
+  return ORDER_STATUS_LABELS[normalized]
+}
+
+export function getOrderStatusColor(status: string): string {
+  const normalized = normalizeOrderStatus(status)
+  if (!normalized) return "bg-zinc-100 text-zinc-700"
+  return ORDER_STATUS_COLORS[normalized]
+}
+
 // ─── Anonymous session ID (analytics) ────────────────────────────────────────
 
 /**

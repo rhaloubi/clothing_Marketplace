@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useState } from "react"
 import { Eye } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
@@ -16,17 +17,17 @@ import {
   cn,
   formatDateTime,
   formatPrice,
-  ORDER_STATUS_COLORS,
-  ORDER_STATUS_LABELS,
+  getOrderStatusColor,
+  getOrderStatusLabel,
+  normalizeOrderStatus,
 } from "@/lib/utils"
-import type { OrderStatus } from "@/types"
 import { OrderStatusSelect } from "./order-status-select"
 
 export interface OrderTableRow {
   id: string
   store_id: string
   order_number: string
-  status: OrderStatus
+  status: string
   customer_name: string
   total_mad: number
   created_at: string
@@ -38,7 +39,12 @@ interface OrdersTableProps {
 }
 
 export function OrdersTable({ orders, storeId }: OrdersTableProps) {
+  const [rows, setRows] = useState(orders)
   const storeQuery = new URLSearchParams({ store: storeId }).toString()
+
+  useEffect(() => {
+    setRows(orders)
+  }, [orders])
 
   return (
     <Table>
@@ -54,7 +60,7 @@ export function OrdersTable({ orders, storeId }: OrdersTableProps) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {orders.map((order) => (
+        {rows.map((order) => (
           <TableRow key={order.id}>
             <TableCell className="font-medium">{order.order_number}</TableCell>
             <TableCell>{order.customer_name}</TableCell>
@@ -66,19 +72,30 @@ export function OrdersTable({ orders, storeId }: OrdersTableProps) {
               <Badge
                 className={cn(
                   "rounded-full px-2 py-0.5 text-xs font-medium",
-                  ORDER_STATUS_COLORS[order.status]
+                  getOrderStatusColor(order.status)
                 )}
                 variant="outline"
               >
-                {ORDER_STATUS_LABELS[order.status]}
+                {getOrderStatusLabel(order.status)}
               </Badge>
             </TableCell>
             <TableCell>
-              <OrderStatusSelect
-                orderId={order.id}
-                storeId={storeId}
-                status={order.status}
-              />
+              {normalizeOrderStatus(order.status) ? (
+                <OrderStatusSelect
+                  orderId={order.id}
+                  storeId={storeId}
+                  status={order.status}
+                  onStatusUpdated={(nextStatus) => {
+                    setRows((prev) =>
+                      prev.map((row) =>
+                        row.id === order.id ? { ...row, status: nextStatus } : row
+                      )
+                    )
+                  }}
+                />
+              ) : (
+                <span className="text-sm text-muted-foreground">Indisponible</span>
+              )}
             </TableCell>
             <TableCell className="text-right">
               <Link
