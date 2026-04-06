@@ -1,17 +1,20 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useCallback, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { apiFetch, ApiClientError } from "@/lib/api-client"
 import { toast } from "sonner"
-import { LogOut, User } from "lucide-react"
+import { LogOut, User, LayoutDashboard, Package2, Plus } from "lucide-react"
 
 interface UserMenuProps {
   email: string
@@ -20,6 +23,8 @@ interface UserMenuProps {
 
 export function UserMenu({ email, fullName }: UserMenuProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const store = searchParams.get("store")
 
   const initials =
     fullName
@@ -29,7 +34,7 @@ export function UserMenu({ email, fullName }: UserMenuProps) {
       .join("")
       .toUpperCase() ?? email.slice(0, 2).toUpperCase()
 
-  async function logout() {
+  const logout = useCallback(async () => {
     try {
       await apiFetch("/api/auth/logout", { method: "POST" })
       router.push("/login")
@@ -38,38 +43,106 @@ export function UserMenu({ email, fullName }: UserMenuProps) {
         toast.error("Erreur lors de la déconnexion.")
       }
     }
-  }
+  }, [router])
+
+  const withStore = useCallback((path: string): string => {
+    if (!store || path === "/dashboard/profile") return path
+    const qs = new URLSearchParams({ store })
+    return `${path}?${qs.toString()}`
+  }, [store])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!(event.shiftKey && event.metaKey)) return
+      switch (event.key.toLowerCase()) {
+        case "p":
+          void router.push("/dashboard/profile")
+          break
+        case "d":
+          void router.push(withStore("/dashboard"))
+          break
+        case "g":
+          void router.push(withStore("/dashboard/products"))
+          break
+        case "h":
+          void router.push(withStore("/dashboard/products"))
+          break
+        case "z":
+          void logout()
+          break
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [logout, router, withStore])
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium outline-none ring-offset-background transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-zinc-300 bg-white text-xs font-semibold text-foreground outline-none transition hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-secondary/30"
         aria-label="Menu utilisateur"
       >
         {initials}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col gap-0.5">
-            {fullName && <span className="font-medium text-sm">{fullName}</span>}
-            <span className="text-xs text-muted-foreground truncate">{email}</span>
-          </div>
-        </DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col gap-0.5">
+              {fullName && <span className="font-medium text-sm">{fullName}</span>}
+              <span className="text-xs text-muted-foreground truncate">{email}</span>
+            </div>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="cursor-pointer gap-2"
-          onSelect={() => router.push("/dashboard/profile")}
-        >
-          <User className="h-4 w-4" />
-          Profil
-        </DropdownMenuItem>
+
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            className="cursor-pointer gap-2"
+            onSelect={() => router.push("/dashboard/profile")}
+          >
+            <User className="h-4 w-4" />
+            <span>Profil</span>
+            <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer gap-2"
+            onSelect={() => router.push(withStore("/dashboard"))}
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            <span>Dashboard</span>
+            <DropdownMenuShortcut>⇧⌘D</DropdownMenuShortcut>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            className="cursor-pointer gap-2"
+            onSelect={() => router.push(withStore("/dashboard/products"))}
+          >
+            <Package2 className="h-4 w-4" />
+            <span>Produits</span>
+            <DropdownMenuShortcut>⇧⌘G</DropdownMenuShortcut>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer gap-2"
+            onSelect={() => router.push(withStore("/dashboard/products"))}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Ajouter produit</span>
+            <DropdownMenuShortcut>⇧⌘H</DropdownMenuShortcut>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="cursor-pointer gap-2 text-destructive focus:text-destructive"
           onSelect={logout}
         >
           <LogOut className="h-4 w-4" />
-          Se déconnecter
+          <span>Se déconnecter</span>
+          <DropdownMenuShortcut>⇧⌘Z</DropdownMenuShortcut>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
