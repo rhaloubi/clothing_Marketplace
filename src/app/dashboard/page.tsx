@@ -3,9 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { parseStoreId } from "@/lib/dashboard"
 import { PlusCircle, Store } from "lucide-react"
 import Link from "next/link"
-import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
 
 type SearchParams = Promise<{ store?: string }>
 
@@ -86,7 +84,10 @@ function NoStoreEmptyState() {
           Créez votre première boutique pour commencer à vendre.
         </p>
       </div>
-      <Link href="/dashboard/stores/new" className={cn(buttonVariants())}>
+      <Link
+        href="/dashboard/stores/new"
+        className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+      >
         <PlusCircle className="me-2 h-4 w-4" />
         Créer ma boutique
       </Link>
