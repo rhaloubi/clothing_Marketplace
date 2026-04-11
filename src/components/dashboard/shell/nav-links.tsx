@@ -62,8 +62,8 @@ export function NavLinks({ onNavigate, collapsed = false }: NavLinksProps) {
               ? "size-11 shrink-0 justify-center p-0 min-h-11 min-w-11"
               : "gap-3 px-2.5 py-2 min-h-11",
             isActive(href, exact)
-              ? "bg-violet-50 text-violet-800"
-              : "text-zinc-600 hover:bg-zinc-100"
+              ? "bg-stripe-purple-muted/35 text-stripe-purple"
+              : "text-stripe-body hover:bg-white/80"
           )}
         >
           <Icon className="h-4 w-4 shrink-0 opacity-90" aria-hidden />

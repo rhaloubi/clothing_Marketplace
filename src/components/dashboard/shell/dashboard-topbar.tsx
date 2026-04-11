@@ -22,7 +22,7 @@ export function DashboardTopbar({
   onToggleSidebarCollapsed,
 }: DashboardTopbarProps) {
   return (
-    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center border-b border-zinc-200 bg-white px-3 lg:px-5">
+    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center border-b border-stripe-border bg-white px-3 lg:px-5">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <HeaderToggleHint
           className="relative shrink-0 lg:hidden"
@@ -33,7 +33,7 @@ export function DashboardTopbar({
           type="button"
           variant="ghost"
           size="icon"
-          className="hidden size-11 min-h-11 min-w-11 shrink-0 rounded-md text-zinc-600 hover:bg-zinc-100 lg:inline-flex"
+          className="hidden size-11 min-h-11 min-w-11 shrink-0 rounded-md text-stripe-body hover:bg-stripe-canvas lg:inline-flex"
           onClick={onToggleSidebarCollapsed}
           aria-expanded={!sidebarCollapsed}
           aria-label={
@@ -64,11 +64,11 @@ export function DashboardTopbar({
           type="button"
           variant="ghost"
           size="icon"
-          className="relative h-10 w-10 rounded-md text-zinc-600 hover:bg-zinc-100"
+          className="relative h-10 w-10 rounded-md text-stripe-body hover:bg-stripe-canvas"
           aria-label="Notifications"
         >
           <Bell className="h-4 w-4" />
-          <span className="absolute end-2 top-2 h-2 w-2 rounded-full bg-violet-500" />
+          <span className="absolute end-2 top-2 h-2 w-2 rounded-full bg-stripe-purple" />
         </Button>
 
         <UserMenu email={userEmail} fullName={userFullName} />

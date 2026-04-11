@@ -96,6 +96,19 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Stripe-inspired dashboard — full spec: docs/stripe/DESIGN.md */
+  --color-stripe-heading: #061b31;
+  --color-stripe-label: #273951;
+  --color-stripe-body: #64748d;
+  --color-stripe-border: #e5edf5;
+  --color-stripe-canvas: #f6f9fc;
+  --color-stripe-purple: #533afd;
+  --color-stripe-purple-hover: #4434d4;
+  --color-stripe-purple-soft: #b9b9f9;
+  --color-stripe-purple-muted: #d6d9fc;
+  --color-stripe-success: #15be53;
+  --color-stripe-success-text: #108c3d;
 }
 
 :root {
@@ -180,6 +193,21 @@
 }
 
 @layer utilities {
+  /** Cards / panels on dashboard list pages — blue-tinted depth (DESIGN.md §6) */
+  .shadow-stripe-card {
+    box-shadow:
+      rgba(50, 50, 93, 0.1) 0px 10px 24px -16px,
+      rgba(0, 0, 0, 0.06) 0px 6px 14px -10px;
+  }
+  .shadow-stripe-card-hover {
+    box-shadow:
+      rgba(50, 50, 93, 0.14) 0px 14px 32px -18px,
+      rgba(0, 0, 0, 0.08) 0px 8px 18px -12px;
+  }
+  /** Financial / price columns — DESIGN.md §3 tnum */
+  .tabular-nums-stripe {
+    font-variant-numeric: tabular-nums;
+  }
   .display-lg {
     letter-spacing: -0.022em;
   }

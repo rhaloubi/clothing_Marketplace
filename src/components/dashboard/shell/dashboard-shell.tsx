@@ -66,27 +66,27 @@ export function DashboardShell({
   )
 
   return (
-    <div className="flex h-screen overflow-hidden bg-zinc-50">
+    <div className="flex h-screen overflow-hidden bg-stripe-canvas">
       {/* Desktop sidebar — collapsible icon rail */}
       <aside
         className={cn(
-          "hidden shrink-0 border-e border-zinc-200 bg-white transition-[width] duration-200 ease-out lg:flex lg:flex-col",
+          "hidden shrink-0 border-e border-stripe-border bg-white transition-[width] duration-200 ease-out lg:flex lg:flex-col",
           sidebarCollapsed ? "w-[4.25rem]" : "w-60"
         )}
       >
         <div
           className={cn(
-            "flex h-14 shrink-0 items-center border-b border-zinc-100 px-3",
+            "flex h-14 shrink-0 items-center border-b border-stripe-border px-3",
             sidebarCollapsed ? "justify-center" : "justify-start"
           )}
         >
           {!sidebarCollapsed ? (
-            <span className="truncate text-[15px] font-semibold tracking-tight text-zinc-900">
+            <span className="truncate text-[15px] font-semibold tracking-tight text-stripe-heading">
               Shri
             </span>
           ) : (
             <>
-              <span className="text-sm font-bold text-violet-700" aria-hidden>
+              <span className="text-sm font-bold text-stripe-purple" aria-hidden>
                 S
               </span>
               <span className="sr-only">Shri</span>
@@ -98,9 +98,9 @@ export function DashboardShell({
 
       {/* Mobile sidebar (Sheet) */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-72 border-e border-zinc-200 bg-white p-0">
-          <SheetHeader className="flex h-14 items-center justify-start border-b border-zinc-100 px-4 py-0">
-            <SheetTitle className="text-[15px] font-semibold tracking-tight text-zinc-900">
+        <SheetContent side="left" className="w-72 border-e border-stripe-border bg-white p-0">
+          <SheetHeader className="flex h-14 items-center justify-start border-b border-stripe-border px-4 py-0">
+            <SheetTitle className="text-[15px] font-semibold tracking-tight text-stripe-heading">
               Shri
             </SheetTitle>
           </SheetHeader>
@@ -119,7 +119,7 @@ export function DashboardShell({
         />
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto bg-zinc-50 px-4 py-5 lg:px-6 lg:py-6">
+        <main className="flex-1 overflow-y-auto bg-stripe-canvas px-4 py-5 lg:px-6 lg:py-6">
           {children}
         </main>
       </div>

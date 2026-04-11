@@ -71,14 +71,14 @@ export function OrdersTable({ orders, storeId }: OrdersTableProps) {
       <TableBody>
         {rows.map((order) => (
           <TableRow key={order.id} className={dashboardTableBodyRowClass}>
-            <TableCell className="px-3 py-3 font-medium text-zinc-900">
+            <TableCell className="px-3 py-3 font-medium text-stripe-heading">
               {order.order_number}
             </TableCell>
-            <TableCell className="px-3 py-3 text-zinc-800">{order.customer_name}</TableCell>
-            <TableCell className="px-3 py-3 text-zinc-500">
+            <TableCell className="px-3 py-3 text-stripe-heading">{order.customer_name}</TableCell>
+            <TableCell className="px-3 py-3 text-sm text-stripe-body">
               {formatDateTime(order.created_at)}
             </TableCell>
-            <TableCell className="px-3 py-3 text-zinc-800">
+            <TableCell className="px-3 py-3 text-stripe-heading tabular-nums-stripe">
               {formatPrice(order.total_mad)}
             </TableCell>
             <TableCell className="px-3 py-3">
@@ -107,7 +107,7 @@ export function OrdersTable({ orders, storeId }: OrdersTableProps) {
                   }}
                 />
               ) : (
-                <span className="text-sm text-zinc-500">Indisponible</span>
+                <span className="text-sm text-stripe-body">Indisponible</span>
               )}
             </TableCell>
             <TableCell className="px-3 py-3 text-right">

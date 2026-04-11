@@ -860,7 +860,8 @@ export function getOpenApiDocument(): Record<string, unknown> {
       "/api/orders": {
         get: {
           tags: ["Orders"],
-          summary: "Lister les commandes d'une boutique",
+          summary:
+            "Lister les commandes (léger : pas de lignes order_items, compteur + wilaya)",
           security: [{ cookieAuth: [] }],
           parameters: [
             {
@@ -884,8 +885,32 @@ export function getOpenApiDocument(): Record<string, unknown> {
                 ],
               },
             },
-            { name: "limit", in: "query", schema: { type: "integer", default: 50 } },
-            { name: "offset", in: "query", schema: { type: "integer", default: 0 } },
+            {
+              name: "q",
+              in: "query",
+              description: "Recherche numéro de commande, nom ou téléphone",
+              schema: { type: "string", maxLength: 200 },
+            },
+            {
+              name: "search",
+              in: "query",
+              description: "Alias de q (OpenAPI / intégrations)",
+              schema: { type: "string", maxLength: 200 },
+            },
+            {
+              name: "from",
+              in: "query",
+              description: "Date de début (AAAA-MM-JJ), created_at inclus",
+              schema: { type: "string", format: "date" },
+            },
+            {
+              name: "to",
+              in: "query",
+              description: "Date de fin (AAAA-MM-JJ), created_at inclus (fin de journée UTC)",
+              schema: { type: "string", format: "date" },
+            },
+            { name: "limit", in: "query", schema: { type: "integer", default: 50, minimum: 1, maximum: 100 } },
+            { name: "offset", in: "query", schema: { type: "integer", default: 0, minimum: 0 } },
           ],
           responses: {
             "200": jsonOk,

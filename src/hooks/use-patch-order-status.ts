@@ -1,8 +1,8 @@
 "use client"
 
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
+import { useRouter } from "next/navigation"
 import { apiFetch, ApiClientError } from "@/lib/api-client"
-import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
 import type { Order, OrderStatus } from "@/types"
 
@@ -12,12 +12,18 @@ interface PatchPayload {
   storeId: string
 }
 
+interface UsePatchOrderStatusOptions {
+  /** When true, refresh server components after success (detail page, etc.). */
+  refreshRouterOnSuccess?: boolean
+}
+
 /**
- * Patches an order's status, invalidates the orders list + the specific order,
- * and shows toast feedback.
+ * PATCH order status via `/api/orders/[id]`.
+ * List rows update via `onStatusUpdated` local state; do not rely on Query cache for lists (see dashboard-data-fetching rule).
  */
-export function usePatchOrderStatus() {
-  const queryClient = useQueryClient()
+export function usePatchOrderStatus(options?: UsePatchOrderStatusOptions) {
+  const router = useRouter()
+  const refreshRouterOnSuccess = options?.refreshRouterOnSuccess ?? false
 
   return useMutation({
     mutationFn: async ({ orderId, status }: PatchPayload) => {
@@ -26,10 +32,11 @@ export function usePatchOrderStatus() {
         body: JSON.stringify({ status }),
       })
     },
-    onSuccess: (_, { orderId, storeId }) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.orders(storeId) })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.order(orderId) })
+    onSuccess: () => {
       toast.success("Statut mis à jour")
+      if (refreshRouterOnSuccess) {
+        router.refresh()
+      }
     },
     onError: (err) => {
       if (err instanceof ApiClientError) {

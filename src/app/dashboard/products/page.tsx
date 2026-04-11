@@ -179,7 +179,7 @@ async function ProductsContent({
 
 function ProductsContentSkeleton() {
   return (
-    <Card className="border border-zinc-200 bg-white shadow-sm ring-0">
+    <Card className="rounded-md border border-stripe-border bg-white shadow-stripe-card ring-0">
       <CardContent className="space-y-3 pt-4">
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-10 w-full" />

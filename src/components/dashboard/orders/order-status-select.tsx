@@ -1,6 +1,5 @@
 "use client"
 
-import { useRouter } from "next/navigation"
 import {
   Select,
   SelectContent,
@@ -37,8 +36,9 @@ export function OrderStatusSelect({
   onStatusUpdated,
   refreshOnSuccess = false,
 }: OrderStatusSelectProps) {
-  const router = useRouter()
-  const patchOrderStatus = usePatchOrderStatus()
+  const patchOrderStatus = usePatchOrderStatus({
+    refreshRouterOnSuccess: refreshOnSuccess,
+  })
   const normalizedStatus = normalizeOrderStatus(status) ?? "pending"
 
   return (
@@ -54,9 +54,6 @@ export function OrderStatusSelect({
           {
             onSuccess: () => {
               onStatusUpdated?.(nextStatus)
-              if (refreshOnSuccess) {
-                router.refresh()
-              }
             },
           }
         )
@@ -66,8 +63,8 @@ export function OrderStatusSelect({
       <SelectTrigger
         size="sm"
         className={cn(
-          "min-w-36 rounded-md border-zinc-200 bg-white shadow-sm",
-          "focus-visible:border-violet-300 focus-visible:ring-violet-500/25"
+          "min-w-36 rounded-[4px] border-stripe-border bg-white text-stripe-heading shadow-sm",
+          "focus-visible:border-stripe-purple focus-visible:ring-2 focus-visible:ring-stripe-purple/25"
         )}
       >
         <SelectValue />

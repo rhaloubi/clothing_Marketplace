@@ -55,14 +55,14 @@ export function ProductsTable({ products, storeId }: ProductsTableProps) {
           <TableRow key={product.id} className={dashboardTableBodyRowClass}>
             <TableCell className="px-3 py-3">
               <div className="flex flex-col">
-                <span className="font-medium text-zinc-900">{product.name}</span>
-                <span className="text-xs text-zinc-500">/{product.slug}</span>
+                <span className="font-medium text-stripe-heading">{product.name}</span>
+                <span className="text-xs text-stripe-body">/{product.slug}</span>
               </div>
             </TableCell>
-            <TableCell className="px-3 py-3 text-zinc-800">
+            <TableCell className="px-3 py-3 text-stripe-heading">
               {product.category ?? "—"}
             </TableCell>
-            <TableCell className="px-3 py-3 text-zinc-800">
+            <TableCell className="px-3 py-3 text-stripe-heading tabular-nums-stripe">
               {formatPrice(product.base_price)}
             </TableCell>
             <TableCell className="px-3 py-3">
@@ -71,8 +71,8 @@ export function ProductsTable({ products, storeId }: ProductsTableProps) {
                   variant="outline"
                   className={
                     product.is_active
-                      ? "rounded-full border-green-200 bg-green-50 text-green-800"
-                      : "rounded-full border-zinc-200 bg-zinc-100 text-zinc-700"
+                      ? "rounded-[4px] border-[rgba(21,190,83,0.4)] bg-[rgba(21,190,83,0.2)] text-sm font-medium text-stripe-success-text"
+                      : "rounded-[4px] border-stripe-border bg-stripe-canvas text-sm font-medium text-stripe-label"
                   }
                 >
                   {product.is_active ? "Actif" : "Inactif"}
@@ -80,14 +80,14 @@ export function ProductsTable({ products, storeId }: ProductsTableProps) {
                 {product.is_featured ? (
                   <Badge
                     variant="outline"
-                    className="rounded-full border-violet-200 bg-violet-50 text-violet-800"
+                    className="rounded-[4px] border-stripe-purple-muted bg-stripe-purple-muted/30 text-sm font-medium text-stripe-purple"
                   >
                     Mis en avant
                   </Badge>
                 ) : null}
               </div>
             </TableCell>
-            <TableCell className="px-3 py-3 text-zinc-500">
+            <TableCell className="px-3 py-3 text-sm text-stripe-body">
               {formatDateTime(product.created_at)}
             </TableCell>
             <TableCell className="px-3 py-3 text-right">

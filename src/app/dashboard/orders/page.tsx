@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { fetchOrdersList } from "@/lib/server/orders-list"
 import { OrdersTable, type OrderTableRow } from "@/components/dashboard/orders/orders-table"
 import { orderStatusSchema } from "@/lib/validations"
 
@@ -25,10 +26,20 @@ type SearchParams = Promise<{
   store?: string
   status?: string
   q?: string
+  from?: string
+  to?: string
   offset?: string
 }>
 
 const PAGE_SIZE = 20
+
+const DATE_PARAM = /^\d{4}-\d{2}-\d{2}$/
+
+function parseOptionalDateParam(value: string | undefined): string | undefined {
+  if (!value?.trim()) return undefined
+  const v = value.trim()
+  return DATE_PARAM.test(v) ? v : undefined
+}
 
 export default async function OrdersPage({
   searchParams,
@@ -42,6 +53,13 @@ export default async function OrdersPage({
   const statusParsed = orderStatusSchema.safeParse(params.status)
   const statusFilter = statusParsed.success ? statusParsed.data : undefined
   const query = (params.q ?? "").trim()
+  let from = parseOptionalDateParam(params.from)
+  let to = parseOptionalDateParam(params.to)
+  if (from && to && from > to) {
+    const t = from
+    from = to
+    to = t
+  }
   const offsetRaw = Number.parseInt(params.offset ?? "0", 10)
   const offset = Number.isNaN(offsetRaw) ? 0 : Math.max(0, offsetRaw)
 
@@ -54,15 +72,15 @@ export default async function OrdersPage({
 
       <DashboardPanelCard
         title="Filtres"
-        description="Recherchez par numéro ou nom client."
+        description="Recherchez par numéro, nom ou téléphone. Limitez par période."
       >
-        <form className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
+        <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_160px_140px_140px_auto]">
           <input type="hidden" name="store" value={storeId} />
           <Input
             name="q"
             defaultValue={query}
             placeholder="Rechercher une commande"
-            className={cn(dashboardFilterInputClass)}
+            className={cn(dashboardFilterInputClass, "sm:col-span-2 lg:col-span-1")}
           />
           <select
             name="status"
@@ -77,20 +95,36 @@ export default async function OrdersPage({
             <option value="returned">Retournée</option>
             <option value="cancelled">Annulée</option>
           </select>
-          <button type="submit" className={dashboardLinkOutline}>
+          <Input
+            type="date"
+            name="from"
+            defaultValue={from ?? ""}
+            className={cn(dashboardFilterInputClass, "text-zinc-800")}
+            aria-label="Du"
+          />
+          <Input
+            type="date"
+            name="to"
+            defaultValue={to ?? ""}
+            className={cn(dashboardFilterInputClass, "text-zinc-800")}
+            aria-label="Au"
+          />
+          <button type="submit" className={cn(dashboardLinkOutline, "sm:col-span-2 lg:col-span-1")}>
             Appliquer
           </button>
         </form>
       </DashboardPanelCard>
 
       <Suspense
-        key={`${storeId}:${statusFilter ?? "all"}:${query}:${offset}`}
+        key={`${storeId}:${statusFilter ?? "all"}:${query}:${from ?? ""}:${to ?? ""}:${offset}`}
         fallback={<OrdersContentSkeleton />}
       >
         <OrdersContent
           supabaseStoreId={storeId}
           statusFilter={statusFilter}
           query={query}
+          from={from}
+          to={to}
           offset={offset}
         />
       </Suspense>
@@ -102,43 +136,36 @@ async function OrdersContent({
   supabaseStoreId,
   statusFilter,
   query,
+  from,
+  to,
   offset,
 }: {
   supabaseStoreId: string
   statusFilter?: "pending" | "confirmed" | "shipped" | "delivered" | "returned" | "cancelled"
   query: string
+  from?: string
+  to?: string
   offset: number
 }) {
   const supabase = await createClient()
 
-  let ordersQuery = supabase
-    .from("orders")
-    .select(
-      "id, store_id, order_number, status, customer_name, total_mad, created_at",
-      { count: "exact" }
-    )
-    .eq("store_id", supabaseStoreId)
-    .order("created_at", { ascending: false })
-    .range(offset, offset + PAGE_SIZE - 1)
+  const { orders, total, error } = await fetchOrdersList(supabase, {
+    storeId: supabaseStoreId,
+    status: statusFilter,
+    searchText: query,
+    from,
+    to,
+    offset,
+    limit: PAGE_SIZE,
+  })
 
-  if (statusFilter) {
-    ordersQuery = ordersQuery.eq("status", statusFilter)
-  }
-
-  if (query.length > 0) {
-    const escaped = query.replaceAll(",", "\\,")
-    ordersQuery = ordersQuery.or(
-      `order_number.ilike.%${escaped}%,customer_name.ilike.%${escaped}%,customer_phone.ilike.%${escaped}%`
-    )
-  }
-
-  const { data, error, count } = await ordersQuery
-  const orders = (data ?? []) as OrderTableRow[]
-  const total = count ?? 0
+  const rows: OrderTableRow[] = orders
 
   const baseParams = new URLSearchParams({ store: supabaseStoreId })
   if (statusFilter) baseParams.set("status", statusFilter)
   if (query) baseParams.set("q", query)
+  if (from) baseParams.set("from", from)
+  if (to) baseParams.set("to", to)
 
   const prevOffset = Math.max(0, offset - PAGE_SIZE)
   const nextOffset = offset + PAGE_SIZE
@@ -165,7 +192,7 @@ async function OrdersContent({
     )
   }
 
-  if (orders.length === 0) {
+  if (rows.length === 0) {
     return (
       <DashboardEmptyState
         icon={ShoppingBag}
@@ -184,12 +211,12 @@ async function OrdersContent({
     <>
       <DashboardTableCard>
         <div className="overflow-x-auto">
-          <OrdersTable orders={orders} storeId={supabaseStoreId} />
+          <OrdersTable orders={rows} storeId={supabaseStoreId} />
         </div>
       </DashboardTableCard>
 
       <DashboardPaginationBar
-        summary={`${offset + 1}-${Math.min(offset + orders.length, total)} sur ${total}`}
+        summary={`${offset + 1}-${Math.min(offset + rows.length, total)} sur ${total}`}
         prevHref={prevHref}
         nextHref={nextHref}
         hasPrev={hasPrev}
@@ -201,7 +228,7 @@ async function OrdersContent({
 
 function OrdersContentSkeleton() {
   return (
-    <Card className="border border-zinc-200 bg-white shadow-sm ring-0">
+    <Card className="rounded-md border border-stripe-border bg-white shadow-stripe-card ring-0">
       <CardContent className="space-y-3 pt-4">
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-10 w-full" />

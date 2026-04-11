@@ -206,6 +206,8 @@ CREATE TABLE public.orders (
 );
 
 CREATE INDEX orders_store_id_idx ON public.orders (store_id);
+CREATE INDEX orders_store_created_idx ON public.orders (store_id, created_at DESC);
+CREATE INDEX orders_store_status_created_idx ON public.orders (store_id, status, created_at DESC);
 
 CREATE TABLE public.order_items (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

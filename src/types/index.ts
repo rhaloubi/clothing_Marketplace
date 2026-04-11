@@ -119,6 +119,20 @@ export type OrderStatus =
   | "returned"
   | "cancelled"
 
+/** Lightweight row for dashboard/API list — no order_items lines, aggregated count only. */
+export interface OrderListItem {
+  id: string
+  store_id: string
+  order_number: string
+  status: OrderStatus
+  customer_name: string
+  customer_phone: string
+  total_mad: number
+  wilaya_name: string | null
+  items_count: number
+  created_at: string
+}
+
 export interface Order {
   id: string
   store_id: string

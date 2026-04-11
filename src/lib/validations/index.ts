@@ -295,14 +295,35 @@ export const orderStatusSchema = z.enum([
   "cancelled",
 ])
 
-export const listOrdersQuerySchema = z.object({
-  store_id: z.string().uuid("Boutique requise"),
-  status: orderStatusSchema.optional(),
-  limit: z.coerce.number().int().min(1).max(100, "Maximum 100 elements"),
-  offset: z.coerce.number().int().min(0, "Offset invalide"),
-})
+const orderListDateParamSchema = z.preprocess(
+  (v) => (v === "" || v === undefined || v === null ? undefined : v),
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide (AAAA-MM-JJ).").optional()
+)
+
+export const listOrdersQuerySchema = z
+  .object({
+    store_id: z.string().uuid("Boutique requise"),
+    status: orderStatusSchema.optional(),
+    limit: z.coerce.number().int().min(1).max(100, "Maximum 100 elements").default(50),
+    offset: z.coerce.number().int().min(0, "Offset invalide").default(0),
+    q: z.string().max(200).optional(),
+    search: z.string().max(200).optional(),
+    from: orderListDateParamSchema,
+    to: orderListDateParamSchema,
+  })
+  .refine((d) => !d.from || !d.to || d.from <= d.to, {
+    message: "La date de fin doit être après ou égale au début.",
+    path: ["to"],
+  })
 
 export type ListOrdersQuery = z.infer<typeof listOrdersQuerySchema>
+
+/** Merge `q` and `search` (OpenAPI alias) for list filters. */
+export function listOrdersSearchText(query: ListOrdersQuery): string {
+  const a = (query.q ?? "").trim()
+  const b = (query.search ?? "").trim()
+  return a.length > 0 ? a : b
+}
 
 export const patchOrderSchema = z
   .object({
