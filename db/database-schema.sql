@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Clothing marketplace — core schema (tables, indexes, RLS, seeds)
 -- Run in Supabase SQL Editor BEFORE supabase-triggers.sql
--- After both files: create Storage buckets store-assets, product-images; then
+-- After both files: run storage-buckets.sql (Storage buckets); then
 --   bun run db:types
 -- =============================================================================
 

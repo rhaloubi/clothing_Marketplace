@@ -80,7 +80,7 @@ export function UserMenu({ email, fullName }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-zinc-300 bg-white text-xs font-semibold text-foreground outline-none transition hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-secondary/30"
+        className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-zinc-200 bg-white text-xs font-semibold text-zinc-800 outline-none transition hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-violet-500/25"
         aria-label="Menu utilisateur"
       >
         {initials}

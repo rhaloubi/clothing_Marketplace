@@ -47,3 +47,6 @@ yarn-error.log*
 
 # cursor files
 .cursor/
+
+#quickmanage
+/quickmanage*

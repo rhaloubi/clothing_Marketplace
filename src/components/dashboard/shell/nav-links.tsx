@@ -1,3 +1,4 @@
+"use client"
 
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
@@ -22,9 +23,11 @@ const navItems = [
 
 interface NavLinksProps {
   onNavigate?: () => void
+  /** Desktop only: hide labels and show icons centered (narrow rail). */
+  collapsed?: boolean
 }
 
-export function NavLinks({ onNavigate }: NavLinksProps) {
+export function NavLinks({ onNavigate, collapsed = false }: NavLinksProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const storeId = searchParams.get("store")
@@ -41,21 +44,30 @@ export function NavLinks({ onNavigate }: NavLinksProps) {
   }
 
   return (
-    <nav className="flex flex-col gap-1 px-3 ">
+    <nav
+      className={cn(
+        "flex flex-col gap-0.5 py-3",
+        collapsed ? "items-center px-1.5" : "px-2"
+      )}
+    >
       {navItems.map(({ href, label, icon: Icon, exact, noStore }) => (
         <Link
           key={href}
           href={buildHref(href, noStore)}
           onClick={onNavigate}
+          title={collapsed ? label : undefined}
           className={cn(
-            "flex items-center gap-3 rounded-xl px-3 py-1.5 text-sm font-medium transition-all duration-150 ",
+            "flex items-center rounded-md text-sm font-medium transition-colors duration-150",
+            collapsed
+              ? "size-11 shrink-0 justify-center p-0 min-h-11 min-w-11"
+              : "gap-3 px-2.5 py-2 min-h-11",
             isActive(href, exact)
-              ? " text-secondary hover:bg-secondary/5"
-              : "text-sidebar-foreground/70 hover:bg-zinc-200/50"
+              ? "bg-violet-50 text-violet-800"
+              : "text-zinc-600 hover:bg-zinc-100"
           )}
         >
-          <Icon className="h-4 w-4 shrink-0" />
-          {label}
+          <Icon className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+          <span className={cn(collapsed && "sr-only")}>{label}</span>
         </Link>
       ))}
     </nav>

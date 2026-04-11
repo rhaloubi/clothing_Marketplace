@@ -20,7 +20,7 @@ export function HeaderToggleHint({ onClick, className }: HeaderToggleHintProps) 
       <Button
         variant="ghost"
         size="icon"
-        className="h-10 w-10 rounded-xl hover:bg-zinc-200/70"
+        className="h-10 w-10 rounded-md text-zinc-600 hover:bg-zinc-100"
         onClick={onClick}
         aria-label="Ouvrir le menu latéral"
       >
