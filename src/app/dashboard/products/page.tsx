@@ -5,14 +5,19 @@ import { Package, PlusCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { parseStoreId } from "@/lib/dashboard"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  DashboardEmptyState,
+  DashboardErrorCard,
+  DashboardPageHeader,
+  DashboardPaginationBar,
+  DashboardPanelCard,
+  DashboardTableCard,
+  dashboardFilterInputClass,
+  dashboardLinkOutline,
+  dashboardLinkPrimary,
+} from "@/components/dashboard/dashboard-page"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import {
   ProductsTable,
@@ -41,46 +46,35 @@ export default async function ProductsPage({
   const offset = Number.isNaN(offsetRaw) ? 0 : Math.max(0, offsetRaw)
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">Produits</h1>
-          <p className="text-sm text-muted-foreground">
-            Gérez votre catalogue et mettez à jour vos produits.
-          </p>
-        </div>
-        <Link
-          href={`/dashboard/products/new?store=${storeId}`}
-          className="inline-flex h-9 items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-        >
-          <PlusCircle className="me-2 h-4 w-4" />
-          Ajouter un produit
-        </Link>
-      </div>
+    <div className="space-y-6">
+      <DashboardPageHeader
+        title="Produits"
+        description="Gérez votre catalogue et mettez à jour vos produits."
+        actions={
+          <Link href={`/dashboard/products/new?store=${storeId}`} className={dashboardLinkPrimary}>
+            <PlusCircle className="h-4 w-4 shrink-0" aria-hidden />
+            Ajouter un produit
+          </Link>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filtrer</CardTitle>
-          <CardDescription>Recherchez un produit par nom, slug ou catégorie.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="grid gap-3 sm:grid-cols-[1fr_auto]">
-            <input type="hidden" name="store" value={storeId} />
-            <Input
-              name="q"
-              defaultValue={query}
-              placeholder="Rechercher un produit"
-              className="rounded-lg"
-            />
-            <button
-              type="submit"
-              className="inline-flex h-9 items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              Appliquer
-            </button>
-          </form>
-        </CardContent>
-      </Card>
+      <DashboardPanelCard
+        title="Filtrer"
+        description="Recherchez un produit par nom, slug ou catégorie."
+      >
+        <form className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <input type="hidden" name="store" value={storeId} />
+          <Input
+            name="q"
+            defaultValue={query}
+            placeholder="Rechercher un produit"
+            className={cn(dashboardFilterInputClass)}
+          />
+          <button type="submit" className={dashboardLinkOutline}>
+            Appliquer
+          </button>
+        </form>
+      </DashboardPanelCard>
 
       <Suspense key={`${storeId}:${query}:${offset}`} fallback={<ProductsContentSkeleton />}>
         <ProductsContent storeId={storeId} query={query} offset={offset} />
@@ -142,84 +136,50 @@ async function ProductsContent({
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center">
-          <p className="text-sm font-medium">Impossible de charger les produits.</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Actualisez la page ou reessayez dans quelques instants.
-          </p>
-        </CardContent>
-      </Card>
+      <DashboardErrorCard
+        message="Impossible de charger les produits."
+        hint="Actualisez la page ou réessayez dans quelques instants."
+      />
     )
   }
 
   if (products.length === 0) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-            <Package className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <div className="space-y-1">
-            <p className="font-medium">Aucun produit pour le moment</p>
-            <p className="text-sm text-muted-foreground">
-              Commencez par ajouter votre premier produit au catalogue.
-            </p>
-          </div>
-          <Link
-            href={`/dashboard/products/new?store=${storeId}`}
-            className="inline-flex h-9 items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-          >
-            <PlusCircle className="me-2 h-4 w-4" />
-            Ajouter un produit
-          </Link>
-        </CardContent>
-      </Card>
+      <DashboardEmptyState
+        icon={Package}
+        title="Aucun produit pour le moment"
+        description="Commencez par ajouter votre premier produit au catalogue."
+        action={{
+          href: `/dashboard/products/new?store=${storeId}`,
+          label: "Ajouter un produit",
+          icon: PlusCircle,
+        }}
+      />
     )
   }
 
   return (
     <>
-      <Card>
-        <CardContent className="pt-4">
+      <DashboardTableCard>
+        <div className="overflow-x-auto">
           <ProductsTable products={products} storeId={storeId} />
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {offset + 1}-{Math.min(offset + products.length, total)} sur {total}
-        </p>
-        <div className="flex items-center gap-2">
-          <Link
-            href={prevHref}
-            aria-disabled={!hasPrev}
-            className={cn(
-              "inline-flex h-8 items-center justify-center rounded-lg border border-input bg-background px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
-              !hasPrev && "pointer-events-none opacity-50"
-            )}
-          >
-            Precedent
-          </Link>
-          <Link
-            href={nextHref}
-            aria-disabled={!hasNext}
-            className={cn(
-              "inline-flex h-8 items-center justify-center rounded-lg border border-input bg-background px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
-              !hasNext && "pointer-events-none opacity-50"
-            )}
-          >
-            Suivant
-          </Link>
         </div>
-      </div>
+      </DashboardTableCard>
+
+      <DashboardPaginationBar
+        summary={`${offset + 1}-${Math.min(offset + products.length, total)} sur ${total}`}
+        prevHref={prevHref}
+        nextHref={nextHref}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
+      />
     </>
   )
 }
 
 function ProductsContentSkeleton() {
   return (
-    <Card>
+    <Card className="border border-zinc-200 bg-white shadow-sm ring-0">
       <CardContent className="space-y-3 pt-4">
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-10 w-full" />

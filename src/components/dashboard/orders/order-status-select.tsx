@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 import { usePatchOrderStatus } from "@/hooks"
 import { ORDER_STATUS_LABELS, normalizeOrderStatus } from "@/lib/utils"
 import type { OrderStatus } from "@/types"
@@ -62,7 +63,13 @@ export function OrderStatusSelect({
       }}
       disabled={patchOrderStatus.isPending}
     >
-      <SelectTrigger size="sm" className="min-w-36 rounded-lg bg-white">
+      <SelectTrigger
+        size="sm"
+        className={cn(
+          "min-w-36 rounded-md border-zinc-200 bg-white shadow-sm",
+          "focus-visible:border-violet-300 focus-visible:ring-violet-500/25"
+        )}
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
