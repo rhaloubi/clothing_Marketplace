@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase/server"
 import { fetchActiveStoreBySlug, listStorefrontProducts } from "@/lib/server/storefront"
 
 export const GET = withRateLimit("public")(
-  async (req: NextRequest, ctx: Record<string, unknown>) => {
-    const { tenant } = await (ctx.params as Promise<{ tenant: string }>)
+  async (req: NextRequest, ctx: { params: Promise<{ tenant: string }> }) => {
+    const { tenant } = await ctx.params
     const limit = Math.min(
       100,
       Math.max(1, Number(req.nextUrl.searchParams.get("limit")) || 24)

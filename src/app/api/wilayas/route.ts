@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 /**
  * Public list of Moroccan regions (reference data). Cached at the edge/browser.
  */
-export const GET = withRateLimit("public")(async () => {
+export const GET = withRateLimit("public")(async (_req: Request, _ctx: { params: Promise<Record<string, string>> }) => {
   const supabase = await createClient()
   const { data, error } = await supabase.from("wilayas").select("*").order("id", { ascending: true })
 

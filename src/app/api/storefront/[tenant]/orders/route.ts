@@ -41,8 +41,8 @@ type VariantRow = {
 }
 
 export const POST = withRateLimit("checkout")(
-  async (req: NextRequest, ctx: Record<string, unknown>) => {
-    const { tenant } = await (ctx.params as Promise<{ tenant: string }>)
+  async (req: NextRequest, ctx: { params: Promise<{ tenant: string }> }) => {
+    const { tenant } = await ctx.params
     const body = (await req.json()) as unknown
     const parsed = storefrontCheckoutSchema.safeParse(body)
     if (!parsed.success) {

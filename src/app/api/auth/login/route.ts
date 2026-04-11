@@ -3,7 +3,7 @@ import { withRateLimit, ok, fail, ValidationError, UnauthorizedError } from "@/l
 import { createClient } from "@/lib/supabase/server"
 import { loginSchema } from "@/lib/validations"
 
-export const POST = withRateLimit("auth")(async (req: NextRequest) => {
+export const POST = withRateLimit("auth")(async (req: NextRequest, _ctx: { params: Promise<Record<string, string>> }) => {
   const body = (await req.json()) as unknown
   const parsed = loginSchema.safeParse(body)
 

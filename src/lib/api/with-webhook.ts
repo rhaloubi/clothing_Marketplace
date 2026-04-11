@@ -85,7 +85,7 @@ export function withWebhook(
 
     return async (
       request: NextRequest,
-      context: { params?: Record<string, string> | Promise<Record<string, string>> }
+      context: { params: Promise<Record<string, string>> }
     ): Promise<Response> => {
       try {
         const params = await resolveParams(context.params)

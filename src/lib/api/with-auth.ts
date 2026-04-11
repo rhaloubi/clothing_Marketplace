@@ -37,12 +37,11 @@ type UserAuthedHandler = (
 
 /** Next.js 15 passes `params` as a Promise on dynamic routes — accept both. */
 export type RouteContextInput = {
-  params?: RouteParams | Promise<RouteParams>
+  params: Promise<RouteParams>   
 }
 
 async function resolveRouteParams(context: RouteContextInput): Promise<RouteParams> {
-  if (context.params === undefined) return {}
-  return await Promise.resolve(context.params)
+  return await context.params   // no need to handle undefined anymore
 }
 
 type ServerSupabase = Awaited<ReturnType<typeof createClient>>

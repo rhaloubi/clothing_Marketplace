@@ -7,8 +7,8 @@ import {
 } from "@/lib/server/storefront"
 
 export const GET = withRateLimit("public")(
-  async (_req: NextRequest, ctx: Record<string, unknown>) => {
-    const { tenant, slug } = await (ctx.params as Promise<{ tenant: string; slug: string }>)
+  async (_req: NextRequest, ctx: { params: Promise<{ tenant: string; slug: string }> }) => {
+    const { tenant, slug } = await ctx.params
 
     const supabase = await createClient()
     const store = await fetchActiveStoreBySlug(supabase, tenant)

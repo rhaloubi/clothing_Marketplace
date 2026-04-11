@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase/server"
 import { fetchActiveStoreBySlug, getShippingZonePrice } from "@/lib/server/storefront"
 
 export const GET = withRateLimit("public")(
-  async (req: NextRequest, ctx: Record<string, unknown>) => {
-    const { tenant } = await (ctx.params as Promise<{ tenant: string }>)
+  async (req: NextRequest, ctx: { params: Promise<{ tenant: string }> }) => {
+    const { tenant } = await ctx.params
     const raw = req.nextUrl.searchParams.get("wilaya_id")
     const wilayaId = raw === null ? NaN : Number(raw)
     if (!Number.isInteger(wilayaId) || wilayaId < 1 || wilayaId > 12) {
