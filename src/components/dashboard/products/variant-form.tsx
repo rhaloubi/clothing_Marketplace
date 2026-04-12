@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Loader2, Plus } from "lucide-react"
+import { Loader2, Plus, Trash2 } from "lucide-react"
 import { z } from "zod"
 import { apiFetch, ApiClientError } from "@/lib/api-client"
 import { toast } from "sonner"
@@ -98,6 +98,7 @@ export function VariantForm({
   const [attrError, setAttrError] = useState<string | null>(null)
   const [newOptionOpen, setNewOptionOpen] = useState(false)
   const [addValueForDef, setAddValueForDef] = useState<VariantFormAttributeDef | null>(null)
+  const [deletingDefId, setDeletingDefId] = useState<string | null>(null)
 
   const defaultValues = useMemo<VariantFormInput>(
     () => ({
@@ -133,6 +134,35 @@ export function VariantForm({
 
   function refreshAttributes() {
     router.refresh()
+  }
+
+  async function removeStoreOption(def: VariantFormAttributeDef) {
+    if (
+      !confirm(
+        `Supprimer l’option « ${def.name} » pour cette boutique ? Les déclinaisons qui l’utilisent ne pourront plus être modifiées correctement tant qu’elles référencent cette option.`
+      )
+    ) {
+      return
+    }
+    setDeletingDefId(def.id)
+    try {
+      await apiFetch<void>(`/api/attributes/${def.id}`, {
+        method: "DELETE",
+        redirectOnUnauthorized: true,
+      })
+      toast.success("Option supprimée")
+      setPicks((prev) => {
+        const next = { ...prev }
+        delete next[def.id]
+        return next
+      })
+      refreshAttributes()
+    } catch (e) {
+      if (e instanceof ApiClientError) toast.error(e.message)
+      else toast.error("Impossible de supprimer l’option.")
+    } finally {
+      setDeletingDefId(null)
+    }
   }
 
   async function onSubmit(values: VariantFormOutput) {
@@ -209,8 +239,7 @@ export function VariantForm({
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              className="text-stripe-purple"
+              className="h-11 min-h-11 px-4 text-sm font-medium text-stripe-purple"
               onClick={() => setNewOptionOpen(true)}
             >
               <Plus className="me-1 h-4 w-4" />
@@ -226,17 +255,41 @@ export function VariantForm({
             <ul className="space-y-4">
               {storeAttributes.map((def) => (
                 <li key={def.id} className="space-y-2">
-                  <div className="flex flex-wrap items-end justify-between gap-2">
-                    <Label htmlFor={`def-${def.id}`}>{def.name}</Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 text-xs text-stripe-purple"
-                      onClick={() => setAddValueForDef(def)}
-                    >
-                      + Valeur
-                    </Button>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Label htmlFor={`def-${def.id}`} className="mb-0">
+                      {def.name}
+                    </Label>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 min-h-9 text-xs text-stripe-purple"
+                        onClick={() => setAddValueForDef(def)}
+                      >
+                        + Valeur
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 min-h-9 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                        disabled={deletingDefId === def.id}
+                        onClick={() => void removeStoreOption(def)}
+                      >
+                        {deletingDefId === def.id ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                            <span className="sr-only">Suppression…</span>
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="me-1 h-3.5 w-3.5 shrink-0" aria-hidden />
+                            Supprimer l’option
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                   <select
                     id={`def-${def.id}`}
@@ -312,18 +365,21 @@ export function VariantForm({
           <p className="text-xs text-red-600">{errors.is_active.message}</p>
         )}
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="bg-stripe-purple text-white hover:bg-stripe-purple-hover"
+            className="h-11 min-h-11 px-5 text-sm font-medium bg-stripe-purple text-white hover:bg-stripe-purple-hover"
           >
             {isSubmitting ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : null}
             {mode === "create" ? "Créer" : "Enregistrer"}
           </Button>
           <Link
             href={`/dashboard/products/${productId}/variants?store=${storeId}`}
-            className={cn(buttonVariants({ variant: "outline", size: "default" }), "h-11 px-4")}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "default" }),
+              "inline-flex h-11 min-h-11 items-center justify-center px-5 text-sm font-medium"
+            )}
           >
             Annuler
           </Link>

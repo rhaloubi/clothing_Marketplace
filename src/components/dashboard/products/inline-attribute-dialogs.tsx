@@ -164,9 +164,14 @@ export function NewAttributeOptionDialog({
                     variant="ghost"
                     size="icon"
                     className="shrink-0"
-                    disabled={rows.length <= 1}
-                    onClick={() => setRows(rows.filter((_, j) => j !== i))}
-                    aria-label="Retirer"
+                    onClick={() => {
+                      if (rows.length <= 1) {
+                        setRows([{ label: "", value: "" }])
+                      } else {
+                        setRows(rows.filter((_, j) => j !== i))
+                      }
+                    }}
+                    aria-label="Retirer cette ligne"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -185,17 +190,23 @@ export function NewAttributeOptionDialog({
             </Button>
           </div>
         </div>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+        <div className="flex flex-wrap justify-end gap-3 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 min-h-11 px-5 text-sm font-medium"
+            onClick={() => onOpenChange(false)}
+          >
             Annuler
           </Button>
           <Button
             type="button"
-            className="bg-stripe-purple text-white hover:bg-stripe-purple-hover"
+            className="h-11 min-h-11 px-5 text-sm font-medium bg-stripe-purple text-white hover:bg-stripe-purple-hover"
             disabled={pending}
             onClick={() => void submit()}
           >
-            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Créer"}
+            {pending ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : null}
+            Créer
           </Button>
         </div>
       </DialogContent>
@@ -276,17 +287,23 @@ export function AddAttributeValueDialog({
             />
           </div>
         </div>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+        <div className="flex flex-wrap justify-end gap-3 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 min-h-11 px-5 text-sm font-medium"
+            onClick={() => onOpenChange(false)}
+          >
             Annuler
           </Button>
           <Button
             type="button"
-            className="bg-stripe-purple text-white hover:bg-stripe-purple-hover"
+            className="h-11 min-h-11 px-5 text-sm font-medium bg-stripe-purple text-white hover:bg-stripe-purple-hover"
             disabled={pending}
             onClick={() => void submit()}
           >
-            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ajouter"}
+            {pending ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : null}
+            Ajouter
           </Button>
         </div>
       </DialogContent>
