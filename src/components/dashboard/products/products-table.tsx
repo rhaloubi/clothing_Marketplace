@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Edit, ExternalLink } from "lucide-react"
+import { Edit, ExternalLink, Layers } from "lucide-react"
 import {
   dashboardLinkOutlineSm,
   dashboardTableBodyRowClass,
@@ -92,6 +92,13 @@ export function ProductsTable({ products, storeId }: ProductsTableProps) {
             </TableCell>
             <TableCell className="px-3 py-3 text-right">
               <div className="inline-flex flex-wrap items-center justify-end gap-2">
+                <Link
+                  href={`/dashboard/products/${product.id}/variants?store=${storeId}`}
+                  className={cn(dashboardLinkOutlineSm, "gap-2")}
+                >
+                  <Layers className="h-4 w-4 shrink-0" aria-hidden />
+                  Déclinaisons
+                </Link>
                 <Link
                   href={`/dashboard/products/${product.id}/edit?store=${storeId}`}
                   className={cn(dashboardLinkOutlineSm, "gap-2")}

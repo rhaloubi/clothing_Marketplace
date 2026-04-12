@@ -85,7 +85,7 @@ const productFieldsSchema = z.object({
     .min(1)
     .optional()
     .nullable(),
-  images: z.array(z.string().url()).min(1, "Au moins une image est requise").max(10),
+  images: z.array(z.string().url()).max(10),
   is_active: z.boolean().default(true),
   is_featured: z.boolean().default(false),
   slug: z.string().optional(), // auto-generated if not provided
@@ -93,10 +93,18 @@ const productFieldsSchema = z.object({
   meta_description: z.string().max(160).optional().nullable(),
 })
 
-export const createProductSchema = productFieldsSchema.refine(
-  (data) => !data.compare_price || data.compare_price > data.base_price,
-  { message: "Le prix barré doit être supérieur au prix de vente", path: ["compare_price"] }
-)
+export const createProductSchema = productFieldsSchema
+  .refine(
+    (data) => !data.compare_price || data.compare_price > data.base_price,
+    { message: "Le prix barré doit être supérieur au prix de vente", path: ["compare_price"] }
+  )
+  .refine(
+    (data) => !data.is_active || data.images.length >= 1,
+    {
+      message: "Ajoutez au moins une photo pour publier le produit.",
+      path: ["images"],
+    }
+  )
 
 export type CreateProductInput = z.infer<typeof createProductSchema>
 
@@ -105,6 +113,13 @@ export const createProductWithStoreSchema = productFieldsSchema
   .refine(
     (data) => !data.compare_price || data.compare_price > data.base_price,
     { message: "Le prix barré doit être supérieur au prix de vente", path: ["compare_price"] }
+  )
+  .refine(
+    (data) => !data.is_active || data.images.length >= 1,
+    {
+      message: "Ajoutez au moins une photo pour publier le produit.",
+      path: ["images"],
+    }
   )
 
 export type CreateProductWithStoreInput = z.infer<typeof createProductWithStoreSchema>

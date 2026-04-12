@@ -48,6 +48,13 @@ export function generateSlug(text: string): string {
     .slice(0, 80)                       // max length
 }
 
+/** Trim and capitalize first letter only (merchant category labels). */
+export function normalizeProductCategoryLabel(value: string): string {
+  const t = value.trim()
+  if (!t) return ""
+  return t.charAt(0).toLocaleUpperCase("fr-FR") + t.slice(1)
+}
+
 // ─── Order number ─────────────────────────────────────────────────────────────
 
 /**

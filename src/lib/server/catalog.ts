@@ -184,3 +184,69 @@ export async function fetchProductWithVariants(
     attribute_definitions: definitions,
   }
 }
+
+/** All attribute definitions for a store with values — same shape as GET /api/attributes. */
+export type StoreAttributeDefinitionWithValues = {
+  id: string
+  store_id: string
+  name: string
+  display_type: string
+  is_required: boolean
+  sort_order: number
+  values: Array<{
+    id: string
+    attribute_definition_id: string
+    label: string
+    value: string
+    color_hex: string | null
+    sort_order: number
+  }>
+}
+
+export async function fetchStoreAttributeDefinitionsWithValues(
+  supabase: SB,
+  storeId: string
+): Promise<StoreAttributeDefinitionWithValues[]> {
+  const { data: defs, error: dErr } = await supabase
+    .from("attribute_definitions")
+    .select("*")
+    .eq("store_id", storeId)
+    .order("sort_order", { ascending: true })
+
+  if (dErr) throw dErr
+
+  const ids = (defs ?? []).map((d) => d.id)
+  const valuesByDef = new Map<string, StoreAttributeDefinitionWithValues["values"]>()
+
+  if (ids.length > 0) {
+    const { data: vals, error: vErr } = await supabase
+      .from("attribute_values")
+      .select("*")
+      .in("attribute_definition_id", ids)
+      .order("sort_order", { ascending: true })
+
+    if (vErr) throw vErr
+    for (const v of vals ?? []) {
+      const list = valuesByDef.get(v.attribute_definition_id) ?? []
+      list.push({
+        id: v.id,
+        attribute_definition_id: v.attribute_definition_id,
+        label: v.label,
+        value: v.value,
+        color_hex: v.color_hex,
+        sort_order: v.sort_order,
+      })
+      valuesByDef.set(v.attribute_definition_id, list)
+    }
+  }
+
+  return (defs ?? []).map((d) => ({
+    id: d.id,
+    store_id: d.store_id,
+    name: d.name,
+    display_type: d.display_type,
+    is_required: d.is_required,
+    sort_order: d.sort_order,
+    values: valuesByDef.get(d.id) ?? [],
+  }))
+}
