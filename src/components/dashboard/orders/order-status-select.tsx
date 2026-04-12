@@ -27,6 +27,8 @@ interface OrderStatusSelectProps {
   status: string
   onStatusUpdated?: (status: OrderStatus) => void
   refreshOnSuccess?: boolean
+  /** Merged onto the select trigger (e.g. `w-full` in a dialog). */
+  triggerClassName?: string
 }
 
 export function OrderStatusSelect({
@@ -35,6 +37,7 @@ export function OrderStatusSelect({
   status,
   onStatusUpdated,
   refreshOnSuccess = false,
+  triggerClassName,
 }: OrderStatusSelectProps) {
   const patchOrderStatus = usePatchOrderStatus({
     refreshRouterOnSuccess: refreshOnSuccess,
@@ -64,7 +67,8 @@ export function OrderStatusSelect({
         size="sm"
         className={cn(
           "min-w-36 rounded-[4px] border-stripe-border bg-white text-stripe-heading shadow-sm",
-          "focus-visible:border-stripe-purple focus-visible:ring-2 focus-visible:ring-stripe-purple/25"
+          "focus-visible:border-stripe-purple focus-visible:ring-2 focus-visible:ring-stripe-purple/25",
+          triggerClassName
         )}
       >
         <SelectValue />

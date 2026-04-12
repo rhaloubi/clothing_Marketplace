@@ -24,6 +24,8 @@ import {
   sendWhatsAppText,
   toWhatsAppRecipientDigits,
 } from "@/lib/whatsapp"
+import { enrichOrderItemsPrimaryImages } from "@/lib/server/order-items-display"
+import type { OrderItem } from "@/types"
 
 export const GET = withUserAuth(
   withRateLimit("api", { keyBy: "user" })(async (_req, { auth, params }) => {
@@ -42,7 +44,12 @@ export const GET = withUserAuth(
 
     await assertStoreOwnership(supabase, order.store_id, auth.user.id)
 
-    return ok(order)
+    const order_items = await enrichOrderItemsPrimaryImages(
+      supabase,
+      (order.order_items ?? []) as OrderItem[]
+    )
+
+    return ok({ ...order, order_items })
   })
 )
 

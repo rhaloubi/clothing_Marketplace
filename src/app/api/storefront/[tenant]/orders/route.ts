@@ -17,6 +17,10 @@ import {
 } from "@/lib/server/storefront"
 import { fetchStoreWhatsAppNotificationContext } from "@/lib/server/merchant-notifications"
 import {
+  imagesArrayFromUnknown,
+  primaryCatalogImageUrl,
+} from "@/lib/server/catalog-images"
+import {
   newOrderMerchantMessage,
   sendWhatsAppText,
   toWhatsAppRecipientDigits,
@@ -37,6 +41,7 @@ type VariantRow = {
   stock_quantity: number
   product_id: string
   is_active: boolean
+  images: unknown
   products: ProductEmbed
 }
 
@@ -79,6 +84,7 @@ export const POST = withRateLimit("checkout")(
         stock_quantity,
         product_id,
         is_active,
+        images,
         products!inner ( name, images, store_id, is_active, base_price )
       `
       )
@@ -115,9 +121,10 @@ export const POST = withRateLimit("checkout")(
     for (const v of rows) {
       const q = qtyByVariant.get(v.id) ?? 0
       const unit = v.price_override ?? v.products.base_price
-      const imgs = v.products.images
-      const firstImage =
-        Array.isArray(imgs) && typeof imgs[0] === "string" ? imgs[0] : null
+      const firstImage = primaryCatalogImageUrl(
+        imagesArrayFromUnknown(v.images),
+        imagesArrayFromUnknown(v.products.images)
+      )
       const lineTotal = unit * q
       subtotal_mad += lineTotal
       lineSnapshots.push({
