@@ -1,36 +1,37 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
-import { Package, PlusCircle } from "lucide-react"
-import { createClient } from "@/lib/supabase/server"
-import { parseStoreId } from "@/lib/dashboard"
+import { ChevronRight, Package, Plus } from "lucide-react"
 import {
   DashboardEmptyState,
   DashboardErrorCard,
-  DashboardPageHeader,
-  DashboardPaginationBar,
-  DashboardPanelCard,
   DashboardTableCard,
-  dashboardFilterInputClass,
-  dashboardLinkOutline,
   dashboardLinkPrimary,
 } from "@/components/dashboard/dashboard-page"
-import { Input } from "@/components/ui/input"
-import { Skeleton } from "@/components/ui/skeleton"
+import { ProductsFiltersBar } from "@/components/dashboard/products/products-filters"
+import { ProductsPaginationBar } from "@/components/dashboard/products/products-pagination"
+import { ProductsTable } from "@/components/dashboard/products/products-table"
 import { Card, CardContent } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
+import { Skeleton } from "@/components/ui/skeleton"
+import { parseStoreId } from "@/lib/dashboard"
 import {
-  ProductsTable,
-  type ProductTableRow,
-} from "@/components/dashboard/products/products-table"
+  fetchDashboardProductCategories,
+  fetchDashboardProductList,
+  type DashboardProductListFilters,
+} from "@/lib/server/products-dashboard-list"
+import { createClient } from "@/lib/supabase/server"
+import { cn } from "@/lib/utils"
 
 type SearchParams = Promise<{
   store?: string
   q?: string
-  offset?: string
+  page?: string
+  category?: string
+  status?: string
+  stock?: string
 }>
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 export default async function ProductsPage({
   searchParams,
@@ -42,99 +43,167 @@ export default async function ProductsPage({
   if (!storeId) redirect("/dashboard")
 
   const query = (params.q ?? "").trim()
-  const offsetRaw = Number.parseInt(params.offset ?? "0", 10)
-  const offset = Number.isNaN(offsetRaw) ? 0 : Math.max(0, offsetRaw)
+  const category = (params.category ?? "").trim()
+  const statusRaw = params.status
+  const status =
+    statusRaw === "active" || statusRaw === "draft" ? statusRaw : "all"
+  const stockRaw = params.stock
+  const stock =
+    stockRaw === "low" || stockRaw === "out" || stockRaw === "ok"
+      ? stockRaw
+      : "all"
+
+  const pageRaw = Number.parseInt(params.page ?? "1", 10)
+  const page = Number.isNaN(pageRaw) ? 1 : Math.max(1, pageRaw)
+
+  const filters: DashboardProductListFilters = {
+    query,
+    category,
+    status,
+    stock,
+  }
+
+  const baseParams = new URLSearchParams()
+  baseParams.set("store", storeId)
+  if (category) baseParams.set("category", category)
+  if (status !== "all") baseParams.set("status", status)
+  if (stock !== "all") baseParams.set("stock", stock)
+  if (query) baseParams.set("q", query)
 
   return (
     <div className="space-y-6">
-      <DashboardPageHeader
-        title="Produits"
-        description="Gérez votre catalogue et mettez à jour vos produits."
-        actions={
-          <Link href={`/dashboard/products/new?store=${storeId}`} className={dashboardLinkPrimary}>
-            <PlusCircle className="h-4 w-4 shrink-0" aria-hidden />
-            Ajouter un produit
-          </Link>
-        }
-      />
-
-      <DashboardPanelCard
-        title="Filtrer"
-        description="Recherchez un produit par nom, slug ou catégorie."
+      <nav
+        className="flex flex-wrap items-center gap-1 text-xs font-medium uppercase tracking-wide text-stripe-label"
+        aria-label="Fil d’Ariane"
       >
-        <form className="grid gap-3 sm:grid-cols-[1fr_auto]">
-          <input type="hidden" name="store" value={storeId} />
-          <Input
-            name="q"
-            defaultValue={query}
-            placeholder="Rechercher un produit"
-            className={cn(dashboardFilterInputClass)}
-          />
-          <button type="submit" className={dashboardLinkOutline}>
-            Appliquer
-          </button>
-        </form>
-      </DashboardPanelCard>
+        <span className="text-stripe-purple">Catalogue</span>
+        <ChevronRight className="h-3.5 w-3.5 text-stripe-border" aria-hidden />
+        <span className="text-stripe-heading">Inventaire</span>
+      </nav>
 
-      <Suspense key={`${storeId}:${query}:${offset}`} fallback={<ProductsContentSkeleton />}>
-        <ProductsContent storeId={storeId} query={query} offset={offset} />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-stripe-heading">
+            Gestion des produits
+          </h1>
+          <p className="max-w-2xl text-sm text-stripe-body">
+            Pilotez votre inventaire avec précision. Suivi des stocks et des
+            variantes pour chaque article.
+          </p>
+        </div>
+        <Link
+          href={`/dashboard/products/new?store=${storeId}`}
+          className={cn(dashboardLinkPrimary, "shrink-0 gap-2")}
+        >
+          <Plus className="h-4 w-4 shrink-0" aria-hidden />
+          Ajouter un produit
+        </Link>
+      </div>
+
+      <Card className="rounded-md border border-stripe-border bg-white shadow-stripe-card ring-0">
+        <CardContent className="p-4 sm:p-5">
+          <Suspense fallback={<FiltersBarSkeleton />}>
+            <ProductsFiltersServer
+              storeId={storeId}
+              category={category}
+              status={status}
+              stock={stock}
+              query={query}
+            />
+          </Suspense>
+        </CardContent>
+      </Card>
+
+      <Suspense
+        key={`${storeId}:${query}:${category}:${status}:${stock}:${page}`}
+        fallback={<ProductsContentSkeleton />}
+      >
+        <ProductsContent
+          storeId={storeId}
+          filters={filters}
+          page={page}
+          baseParams={baseParams}
+        />
       </Suspense>
+    </div>
+  )
+}
+
+async function ProductsFiltersServer({
+  storeId,
+  category,
+  status,
+  stock,
+  query,
+}: {
+  storeId: string
+  category: string
+  status: string
+  stock: string
+  query: string
+}) {
+  const supabase = await createClient()
+  let categories: string[] = []
+  try {
+    categories = await fetchDashboardProductCategories(supabase, storeId)
+  } catch {
+    categories = []
+  }
+
+  return (
+    <ProductsFiltersBar
+      storeId={storeId}
+      categories={categories}
+      category={category}
+      status={status}
+      stock={stock}
+      query={query}
+    />
+  )
+}
+
+function FiltersBarSkeleton() {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+      <Skeleton className="h-11 w-full sm:w-52" />
+      <Skeleton className="h-11 w-full sm:w-52" />
+      <Skeleton className="h-11 w-full sm:w-52" />
+      <Skeleton className="ms-auto h-11 w-full sm:w-44" />
     </div>
   )
 }
 
 async function ProductsContent({
   storeId,
-  query,
-  offset,
+  filters,
+  page,
+  baseParams,
 }: {
   storeId: string
-  query: string
-  offset: number
+  filters: DashboardProductListFilters
+  page: number
+  baseParams: URLSearchParams
 }) {
   const supabase = await createClient()
 
-  let productQuery = supabase
-    .from("products")
-    .select("id, name, slug, category, base_price, is_active, is_featured, created_at", {
-      count: "exact",
-    })
-    .eq("store_id", storeId)
-    .order("created_at", { ascending: false })
-    .range(offset, offset + PAGE_SIZE - 1)
+  let rows: Awaited<
+    ReturnType<typeof fetchDashboardProductList>
+  >["rows"] = []
+  let total = 0
+  let maxStockOnPage = 1
 
-  if (query) {
-    const escaped = query.replaceAll(",", "\\,")
-    productQuery = productQuery.or(
-      `name.ilike.%${escaped}%,slug.ilike.%${escaped}%,category.ilike.%${escaped}%`
+  try {
+    const result = await fetchDashboardProductList(
+      supabase,
+      storeId,
+      filters,
+      page,
+      PAGE_SIZE
     )
-  }
-
-  const { data, error, count } = await productQuery
-  const products = (data ?? []) as ProductTableRow[]
-  const total = count ?? 0
-
-  const baseParams = new URLSearchParams({ store: storeId })
-  if (query) baseParams.set("q", query)
-
-  const prevOffset = Math.max(0, offset - PAGE_SIZE)
-  const nextOffset = offset + PAGE_SIZE
-  const hasPrev = offset > 0
-  const hasNext = nextOffset < total
-
-  const prevHref = (() => {
-    const p = new URLSearchParams(baseParams)
-    p.set("offset", String(prevOffset))
-    return `/dashboard/products?${p.toString()}`
-  })()
-
-  const nextHref = (() => {
-    const p = new URLSearchParams(baseParams)
-    p.set("offset", String(nextOffset))
-    return `/dashboard/products?${p.toString()}`
-  })()
-
-  if (error) {
+    rows = result.rows
+    total = result.total
+    maxStockOnPage = result.maxStockOnPage
+  } catch {
     return (
       <DashboardErrorCard
         message="Impossible de charger les produits."
@@ -143,48 +212,98 @@ async function ProductsContent({
     )
   }
 
-  if (products.length === 0) {
+  if (total === 0) {
+    const { count, error: cErr } = await supabase
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("store_id", storeId)
+
+    const anyInStore = !cErr && (count ?? 0) > 0
+
+    if (!anyInStore) {
+      return (
+        <DashboardEmptyState
+          icon={Package}
+          title="Aucun produit pour le moment"
+          description="Commencez par ajouter votre premier produit au catalogue."
+          action={{
+            href: `/dashboard/products/new?store=${storeId}`,
+            label: "Ajouter un produit",
+            icon: Plus,
+          }}
+        />
+      )
+    }
+
     return (
-      <DashboardEmptyState
-        icon={Package}
-        title="Aucun produit pour le moment"
-        description="Commencez par ajouter votre premier produit au catalogue."
-        action={{
-          href: `/dashboard/products/new?store=${storeId}`,
-          label: "Ajouter un produit",
-          icon: PlusCircle,
-        }}
-      />
+      <Card className="rounded-md border border-stripe-border bg-white shadow-stripe-card ring-0">
+        <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-md bg-stripe-purple-muted/40">
+            <Package className="h-5 w-5 text-stripe-purple" aria-hidden />
+          </div>
+          <div className="space-y-1">
+            <p className="font-medium text-stripe-heading">
+              Aucun produit ne correspond à ces filtres
+            </p>
+            <p className="text-sm text-stripe-body">
+              Élargissez la recherche ou réinitialisez les filtres.
+            </p>
+          </div>
+          <Link
+            href={`/dashboard/products?store=${storeId}`}
+            className={dashboardLinkPrimary}
+          >
+            Réinitialiser les filtres
+          </Link>
+        </CardContent>
+      </Card>
     )
   }
 
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  if (rows.length === 0 && total > 0 && page > totalPages) {
+    const p = new URLSearchParams(baseParams.toString())
+    p.set("store", storeId)
+    if (totalPages <= 1) {
+      p.delete("page")
+    } else {
+      p.set("page", String(totalPages))
+    }
+    redirect(`/dashboard/products?${p.toString()}`)
+  }
+
   return (
-    <>
+    <div className="space-y-4">
       <DashboardTableCard>
         <div className="overflow-x-auto">
-          <ProductsTable products={products} storeId={storeId} />
+          <ProductsTable
+            products={rows}
+            storeId={storeId}
+            maxStockOnPage={maxStockOnPage}
+          />
         </div>
       </DashboardTableCard>
 
-      <DashboardPaginationBar
-        summary={`${offset + 1}-${Math.min(offset + products.length, total)} sur ${total}`}
-        prevHref={prevHref}
-        nextHref={nextHref}
-        hasPrev={hasPrev}
-        hasNext={hasNext}
+      <ProductsPaginationBar
+        storeId={storeId}
+        currentPage={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        baseParams={baseParams}
       />
-    </>
+    </div>
   )
 }
 
 function ProductsContentSkeleton() {
   return (
     <Card className="rounded-md border border-stripe-border bg-white shadow-stripe-card ring-0">
-      <CardContent className="space-y-3 pt-4">
+      <CardContent className="space-y-3 p-4 sm:p-5">
         <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-14 w-full" />
+        <Skeleton className="h-14 w-full" />
+        <Skeleton className="h-14 w-full" />
+        <Skeleton className="h-14 w-full" />
       </CardContent>
     </Card>
   )

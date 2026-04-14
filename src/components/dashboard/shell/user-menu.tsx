@@ -99,7 +99,7 @@ export function UserMenu({ email, fullName }: UserMenuProps) {
         <DropdownMenuGroup>
           <DropdownMenuItem
             className="cursor-pointer gap-2"
-            onSelect={() => router.push("/dashboard/profile")}
+            onClick={() => router.push("/dashboard/profile")}
           >
             <User className="h-4 w-4" />
             <span>Profil</span>
@@ -107,7 +107,7 @@ export function UserMenu({ email, fullName }: UserMenuProps) {
           </DropdownMenuItem>
           <DropdownMenuItem
             className="cursor-pointer gap-2"
-            onSelect={() => router.push(withStore("/dashboard"))}
+            onClick={() => router.push(withStore("/dashboard"))}
           >
             <LayoutDashboard className="h-4 w-4" />
             <span>Dashboard</span>
@@ -119,7 +119,7 @@ export function UserMenu({ email, fullName }: UserMenuProps) {
         <DropdownMenuGroup>
           <DropdownMenuItem
             className="cursor-pointer gap-2"
-            onSelect={() => router.push(withStore("/dashboard/products"))}
+            onClick={() => router.push(withStore("/dashboard/products"))}
           >
             <Package2 className="h-4 w-4" />
             <span>Produits</span>
@@ -127,7 +127,7 @@ export function UserMenu({ email, fullName }: UserMenuProps) {
           </DropdownMenuItem>
           <DropdownMenuItem
             className="cursor-pointer gap-2"
-            onSelect={() => router.push(withStore("/dashboard/products"))}
+            onClick={() => router.push(withStore("/dashboard/products"))}
           >
             <Plus className="h-4 w-4" />
             <span>Ajouter produit</span>
@@ -138,7 +138,9 @@ export function UserMenu({ email, fullName }: UserMenuProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="cursor-pointer gap-2 text-destructive focus:text-destructive"
-          onSelect={logout}
+          onClick={() => {
+            void logout()
+          }}
         >
           <LogOut className="h-4 w-4" />
           <span>Se déconnecter</span>

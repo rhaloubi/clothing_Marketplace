@@ -8,6 +8,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/** Seuil « stock bas » pour les listes inventaire (dashboard). */
+export const PRODUCT_LIST_LOW_STOCK_THRESHOLD = 10
+
 // ─── Price formatting ─────────────────────────────────────────────────────────
 
 /**

@@ -77,7 +77,7 @@ export function StoreSwitcher({ stores, className }: StoreSwitcherProps) {
         {stores.map((s) => (
           <DropdownMenuItem
             key={s.id}
-            onSelect={() => switchStore(s.id)}
+            onClick={() => switchStore(s.id)}
             className={cn(
               "cursor-pointer gap-2",
               s.id === activeId && "font-medium"
@@ -90,7 +90,7 @@ export function StoreSwitcher({ stores, className }: StoreSwitcherProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="cursor-pointer gap-2 text-muted-foreground"
-          onSelect={() => router.push("/dashboard/stores/new")}
+          onClick={() => router.push("/dashboard/stores/new")}
         >
           <PlusCircle className="h-4 w-4" />
           Nouvelle boutique

@@ -109,6 +109,22 @@ export interface ProductWithVariants extends Product {
   attribute_definitions: AttributeDefinition[]
 }
 
+/** Dashboard inventaire — one row per product with aggregated variant / stock fields. */
+export interface ProductDashboardListRow {
+  id: string
+  name: string
+  slug: string
+  category: string | null
+  base_price: number
+  is_active: boolean
+  images: string[]
+  /** Merchant-facing ref line (SKU or short id), e.g. "REF: SKU-001". */
+  reference_label: string
+  variant_count: number
+  total_stock: number
+  created_at: string
+}
+
 // ─── Order ────────────────────────────────────────────────────────────────────
 
 export type OrderStatus =
