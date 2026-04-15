@@ -9,7 +9,7 @@ import {
   Package,
   BarChart2,
   Settings,
-  CreditCard,
+  User,
 } from "lucide-react"
 
 const navItems = [
@@ -18,7 +18,7 @@ const navItems = [
   { href: "/dashboard/products", label: "Produits", icon: Package },
   { href: "/dashboard/analytics", label: "Statistiques", icon: BarChart2 },
   { href: "/dashboard/settings", label: "Paramètres", icon: Settings },
-  { href: "/dashboard/subscription", label: "Abonnement", icon: CreditCard, noStore: true },
+  { href: "/dashboard/profile", label: "Profil", icon: User, noStore: true },
 ]
 
 interface NavLinksProps {

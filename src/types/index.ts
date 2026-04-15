@@ -301,6 +301,39 @@ export interface Cart {
   subtotal_mad: number
 }
 
+// ─── Merchant profile & subscription (dashboard) ───────────────────────────
+
+export type SubscriptionStatus = "active" | "cancelled" | "expired" | "past_due"
+
+/** `profiles` row — marchand. */
+export interface MerchantProfile {
+  id: string
+  full_name: string
+  phone: string | null
+  avatar_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** `subscriptions` + plan joint (liste dashboard). */
+export interface SubscriptionWithPlan {
+  id: string
+  user_id: string
+  plan_id: string
+  status: SubscriptionStatus
+  current_period_start: string
+  current_period_end: string
+  plan: Plan
+}
+
+/** Données pour `/dashboard/profile` (RSC → client). */
+export interface ProfilePageData {
+  email: string
+  profile: MerchantProfile
+  subscription: SubscriptionWithPlan
+  plans: Plan[]
+}
+
 // ─── Tenant context (resolved by middleware) ─────────────────────────────────
 
 export interface TenantContext {

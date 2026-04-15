@@ -490,6 +490,20 @@ export const patchProfileSchema = z
 
 export type PatchProfileInput = z.infer<typeof patchProfileSchema>
 
+/** Formulaire page Profil (dashboard) — toujours au moins `full_name` pour PATCH. */
+export const profileSettingsFormSchema = z.object({
+  full_name: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(100),
+  phone: z.string().refine(
+    (s) => {
+      const t = s.replace(/\s/g, "")
+      return t === "" || /^(\+212|0)[5-7][0-9]{8}$/.test(t)
+    },
+    { message: "Numéro de téléphone marocain invalide" }
+  ),
+})
+
+export type ProfileSettingsFormInput = z.infer<typeof profileSettingsFormSchema>
+
 // ─── Subscription plan ────────────────────────────────────────────────────────
 
 export const updateSubscriptionPlanSchema = z.object({
