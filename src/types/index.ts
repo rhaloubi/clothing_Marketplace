@@ -213,6 +213,18 @@ export interface ShippingZone {
   wilaya?: Wilaya
 }
 
+/** Zone de livraison avec wilaya jointe (liste paramètres / API). */
+export type ShippingZoneWithWilaya = ShippingZone & { wilaya: Wilaya }
+
+/** Données initiales pour `/dashboard/settings` (RSC → client). */
+export interface StoreSettingsInitialData {
+  store: Pick<Store, "id" | "name" | "slug" | "logo_url" | "banner_url" | "whatsapp_number">
+  shipping_zones: ShippingZoneWithWilaya[]
+  wilayas: Wilaya[]
+  /** `NEXT_PUBLIC_ROOT_DOMAIN` — suffixe public du sous-domaine boutique. */
+  rootDomain: string
+}
+
 export interface ShippingProvider {
   id: string
   name: string

@@ -69,6 +69,7 @@ export const PATCH = withUserAuth(
 
     const row: StoreUpdate = {}
     if (patch.name !== undefined) row.name = patch.name
+    if (patch.slug !== undefined) row.slug = patch.slug
     if (patch.description !== undefined) row.description = patch.description
     if (patch.whatsapp_number !== undefined) {
       row.whatsapp_number =
@@ -86,7 +87,14 @@ export const PATCH = withUserAuth(
     if (patch.banner_url !== undefined) row.banner_url = patch.banner_url
 
     const { data, error } = await supabase.from("stores").update(row).eq("id", id).select().single()
-    if (error) return fail(error)
+    if (error) {
+      if (error.code === "23505") {
+        return fail(
+          new ConflictError("Ce lien d’adresse est déjà utilisé. Choisissez-en un autre.")
+        )
+      }
+      return fail(error)
+    }
     return ok(data)
   })
 )

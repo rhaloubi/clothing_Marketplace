@@ -40,17 +40,31 @@ export const createStoreSchema = z.object({
     .or(z.literal("")),
 })
 
-/** PATCH /api/stores/[id] — all fields optional; slug cannot change via API */
+/** PATCH /api/stores/[id] — all fields optional */
 export const updateStoreSchema = z
   .object({
     name: z.string().min(2).max(60).optional(),
+    slug: createStoreSchema.shape.slug.optional(),
     description: z.string().max(500).optional().nullable(),
     whatsapp_number: z
-      .string()
-      .regex(/^\+?[0-9]{9,15}$/, "Numéro WhatsApp invalide")
-      .optional()
-      .nullable()
-      .or(z.literal("")),
+      .union([
+        z.undefined(),
+        z.null(),
+        z.literal("").transform(() => null),
+        z
+          .string()
+          .transform((s) => s.replace(/\s/g, ""))
+          .pipe(
+            z
+              .string()
+              .regex(
+                /^(\+212|0)[5-7][0-9]{8}$/,
+                "Numéro WhatsApp marocain invalide (ex. +212612345678)"
+              )
+              .transform((t) => (t.startsWith("0") ? `+212${t.slice(1)}` : t))
+          ),
+      ])
+      .optional(),
     theme: z.enum(["minimal", "bold", "elegant"]).optional(),
     theme_config: z.record(z.unknown()).optional(),
     custom_domain: z.string().optional().nullable(),
@@ -64,6 +78,21 @@ export const updateStoreSchema = z
 
 export type CreateStoreInput = z.infer<typeof createStoreSchema>
 export type UpdateStoreInput = z.infer<typeof updateStoreSchema>
+
+/** Formulaire Paramètres boutique — partie nationale (9 chiffres) après +212. */
+export const storeSettingsFormSchema = z.object({
+  name: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(60),
+  slug: createStoreSchema.shape.slug,
+  whatsapp_national: z.string().refine(
+    (s) => {
+      const t = s.replace(/\s/g, "")
+      return t === "" || /^[5-7][0-9]{8}$/.test(t)
+    },
+    { message: "9 chiffres requis (ex. 612345678), sans 0 ni +212" }
+  ),
+})
+
+export type StoreSettingsFormInput = z.infer<typeof storeSettingsFormSchema>
 
 // ─── Product ──────────────────────────────────────────────────────────────────
 
