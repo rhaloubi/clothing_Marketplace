@@ -24,7 +24,7 @@ export async function enrichOrderItemsPrimaryImages(
   supabase: SB,
   items: OrderItem[]
 ): Promise<OrderItem[]> {
-  const enrichable = items.filter((i) => i.variant_id || i.product_id)
+  const enrichable = items.filter((i) => i.variant_id != null || i.product_id != null)
   if (enrichable.length === 0) {
     return items.map((item) =>
       isPlaceholderProductImage(item.product_image)

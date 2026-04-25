@@ -68,8 +68,10 @@ export default async function SettingsPage({
     },
     shipping_zones,
     wilayas: wilayaRows as Wilaya[],
-    rootDomain:
-      process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || "platform.localhost",
+    rootDomain: (() => {
+      const d = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim()
+      return d && d.length > 0 ? d : "platform.localhost"
+    })(),
   }
 
   return (

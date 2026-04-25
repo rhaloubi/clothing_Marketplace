@@ -39,7 +39,7 @@ export function ProductsPaginationBar({
 
   const windowSize = 5
   let startPage = Math.max(1, safePage - Math.floor(windowSize / 2))
-  let endPage = Math.min(totalPages, startPage + windowSize - 1)
+  const endPage = Math.min(totalPages, startPage + windowSize - 1)
   if (endPage - startPage + 1 < windowSize) {
     startPage = Math.max(1, endPage - windowSize + 1)
   }

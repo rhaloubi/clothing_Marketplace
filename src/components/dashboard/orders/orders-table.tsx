@@ -1,15 +1,19 @@
 "use client"
 
-import Link from "next/link"
-import { useEffect, useState } from "react"
-import { Eye } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { MoreHorizontal } from "lucide-react"
 import {
-  dashboardLinkOutlineSm,
   dashboardTableBodyRowClass,
   dashboardTableHeadClass,
   dashboardTableHeaderRowClass,
 } from "@/components/dashboard/dashboard-page"
 import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Table,
   TableBody,
@@ -24,9 +28,7 @@ import {
   formatPrice,
   getOrderStatusColor,
   getOrderStatusLabel,
-  normalizeOrderStatus,
 } from "@/lib/utils"
-import { OrderStatusSelect } from "./order-status-select"
 
 export interface OrderTableRow {
   id: string
@@ -34,6 +36,8 @@ export interface OrderTableRow {
   order_number: string
   status: string
   customer_name: string
+  customer_phone: string
+  wilaya_name?: string | null
   total_mad: number
   created_at: string
 }
@@ -44,39 +48,39 @@ interface OrdersTableProps {
 }
 
 export function OrdersTable({ orders, storeId }: OrdersTableProps) {
-  const [rows, setRows] = useState(orders)
+  const router = useRouter()
   const storeQuery = new URLSearchParams({ store: storeId }).toString()
-
-  useEffect(() => {
-    setRows(orders)
-  }, [orders])
 
   return (
     <Table>
       <TableHeader>
         <TableRow className={dashboardTableHeaderRowClass}>
+          <TableHead className={dashboardTableHeadClass}>Date</TableHead>
           <TableHead className={dashboardTableHeadClass}>Commande</TableHead>
           <TableHead className={dashboardTableHeadClass}>Client</TableHead>
-          <TableHead className={dashboardTableHeadClass}>Date</TableHead>
           <TableHead className={dashboardTableHeadClass}>Total</TableHead>
           <TableHead className={dashboardTableHeadClass}>Statut</TableHead>
-          <TableHead className={cn(dashboardTableHeadClass, "w-44")}>
-            Changer statut
-          </TableHead>
           <TableHead className={cn(dashboardTableHeadClass, "text-right")}>
-            Action
+            Actions
           </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map((order) => (
+        {orders.map((order) => (
           <TableRow key={order.id} className={dashboardTableBodyRowClass}>
-            <TableCell className="px-3 py-3 font-medium text-stripe-heading">
-              {order.order_number}
-            </TableCell>
-            <TableCell className="px-3 py-3 text-stripe-heading">{order.customer_name}</TableCell>
             <TableCell className="px-3 py-3 text-sm text-stripe-body">
               {formatDateTime(order.created_at)}
+            </TableCell>
+            <TableCell className="px-3 py-3 font-semibold text-stripe-purple">
+              {order.order_number}
+            </TableCell>
+            <TableCell className="px-3 py-3">
+              <div className="flex flex-col">
+                <span className="font-medium text-stripe-heading">{order.customer_name}</span>
+                <span className="text-xs text-stripe-body">
+                  {order.wilaya_name ?? order.customer_phone}
+                </span>
+              </div>
             </TableCell>
             <TableCell className="px-3 py-3 text-stripe-heading tabular-nums-stripe">
               {formatPrice(order.total_mad)}
@@ -92,32 +96,25 @@ export function OrdersTable({ orders, storeId }: OrdersTableProps) {
                 {getOrderStatusLabel(order.status)}
               </Badge>
             </TableCell>
-            <TableCell className="px-3 py-3">
-              {normalizeOrderStatus(order.status) ? (
-                <OrderStatusSelect
-                  orderId={order.id}
-                  storeId={storeId}
-                  status={order.status}
-                  onStatusUpdated={(nextStatus) => {
-                    setRows((prev) =>
-                      prev.map((row) =>
-                        row.id === order.id ? { ...row, status: nextStatus } : row
-                      )
-                    )
-                  }}
-                />
-              ) : (
-                <span className="text-sm text-stripe-body">Indisponible</span>
-              )}
-            </TableCell>
             <TableCell className="px-3 py-3 text-right">
-              <Link
-                href={`/dashboard/orders/${order.id}?${storeQuery}`}
-                className={cn(dashboardLinkOutlineSm, "inline-flex gap-2")}
-              >
-                <Eye className="h-4 w-4 shrink-0" aria-hidden />
-                Voir
-              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={cn(
+                    "inline-flex h-9 w-9 items-center justify-center rounded-md text-stripe-label transition-colors hover:bg-stripe-canvas hover:text-stripe-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stripe-purple/25"
+                  )}
+                  aria-label={`Actions pour ${order.order_number}`}
+                >
+                  <MoreHorizontal className="h-4 w-4" aria-hidden />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-40">
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/dashboard/orders/${order.id}?${storeQuery}`)}
+                  >
+                    Voir le détail
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </TableCell>
           </TableRow>
         ))}

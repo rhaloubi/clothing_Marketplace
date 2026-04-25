@@ -236,10 +236,13 @@ export function ProductForm({
     return [...set].sort((a, b) => a.localeCompare(b, "fr"))
   }, [initialValues?.category])
 
+  const trimmedBreadcrumb = breadcrumbLabel?.trim()
   const breadcrumbEnd =
     mode === "create"
       ? "Ajouter un produit"
-      : breadcrumbLabel?.trim() || "Modifier le produit"
+      : trimmedBreadcrumb && trimmedBreadcrumb.length > 0
+        ? trimmedBreadcrumb
+        : "Modifier le produit"
 
   async function onFilesSelected(files: FileList | null) {
     if (!files?.length) return

@@ -34,9 +34,14 @@ export function primaryCatalogImageUrl(
 /** PostgREST embed: `products` may be an object or a single-element array. */
 export function productImagesFromEmbed(products: unknown): string[] {
   if (!products) return []
-  const row = Array.isArray(products) ? products[0] : products
-  if (!row || typeof row !== "object" || !("images" in row)) return []
-  return imagesArrayFromUnknown((row as { images: unknown }).images)
+  const row: unknown = Array.isArray(products)
+    ? (products as readonly unknown[])[0]
+    : products
+  if (row === null || row === undefined || typeof row !== "object" || !("images" in row)) {
+    return []
+  }
+  const rec = row as Record<string, unknown>
+  return imagesArrayFromUnknown(rec.images)
 }
 
 export function isPlaceholderProductImage(url: string | null | undefined): boolean {

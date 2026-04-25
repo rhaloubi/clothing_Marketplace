@@ -122,7 +122,11 @@ export function NewAttributeOptionDialog({
             <Label>Affichage</Label>
             <Select
               value={displayType}
-              onValueChange={(v) => setDisplayType(v as AttributeDisplayType)}
+              onValueChange={(v) =>
+                setDisplayType(
+                  v === "color_swatch" || v === "button" || v === "text" ? v : "select"
+                )
+              }
             >
               <SelectTrigger className="mt-1.5 w-full">
                 <SelectValue />

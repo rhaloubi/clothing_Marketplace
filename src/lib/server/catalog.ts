@@ -250,3 +250,83 @@ export async function fetchStoreAttributeDefinitionsWithValues(
     values: valuesByDef.get(d.id) ?? [],
   }))
 }
+
+/** Per attribute_definition_id: count of distinct product_variants in this store that use at least one of its values. */
+export async function fetchAttributeDefinitionUsageCounts(
+  supabase: SB,
+  storeId: string
+): Promise<Record<string, number>> {
+  const { data: storeProducts, error: pErr } = await supabase
+    .from("products")
+    .select("id")
+    .eq("store_id", storeId)
+
+  if (pErr) throw pErr
+  const productIds = (storeProducts ?? []).map((p) => p.id)
+  if (productIds.length === 0) return {}
+
+  const { data: variants, error: vErr } = await supabase
+    .from("product_variants")
+    .select("id")
+    .in("product_id", productIds)
+
+  if (vErr) throw vErr
+  const variantIds = (variants ?? []).map((v) => v.id)
+  if (variantIds.length === 0) return {}
+
+  const { data: links, error: lErr } = await supabase
+    .from("variant_attribute_values")
+    .select("variant_id, attribute_value_id")
+    .in("variant_id", variantIds)
+
+  if (lErr) throw lErr
+  const linkRows = links ?? []
+  const valueIds = [...new Set(linkRows.map((l) => l.attribute_value_id))]
+  if (valueIds.length === 0) return {}
+
+  const { data: vals, error: avErr } = await supabase
+    .from("attribute_values")
+    .select("id, attribute_definition_id")
+    .in("id", valueIds)
+
+  if (avErr) throw avErr
+  const valueToDef = new Map((vals ?? []).map((v) => [v.id, v.attribute_definition_id]))
+
+  const defToVariants = new Map<string, Set<string>>()
+  for (const link of linkRows) {
+    const defId = valueToDef.get(link.attribute_value_id)
+    if (!defId) continue
+    const set = defToVariants.get(defId) ?? new Set()
+    set.add(link.variant_id)
+    defToVariants.set(defId, set)
+  }
+
+  const out: Record<string, number> = {}
+  for (const [defId, set] of defToVariants) {
+    out[defId] = set.size
+  }
+  return out
+}
+
+export type StoreCategorySummaryRow = { category: string; productCount: number }
+
+/** Distinct non-empty product categories for a store, ordered by usage (desc). */
+export async function fetchStoreCategorySummary(
+  supabase: SB,
+  storeId: string
+): Promise<StoreCategorySummaryRow[]> {
+  const { data: rows, error } = await supabase.from("products").select("category").eq("store_id", storeId)
+
+  if (error) throw error
+
+  const counts = new Map<string, number>()
+  for (const row of rows ?? []) {
+    const c = row.category?.trim()
+    if (!c) continue
+    counts.set(c, (counts.get(c) ?? 0) + 1)
+  }
+
+  return [...counts.entries()]
+    .map(([category, productCount]) => ({ category, productCount }))
+    .sort((a, b) => b.productCount - a.productCount)
+}

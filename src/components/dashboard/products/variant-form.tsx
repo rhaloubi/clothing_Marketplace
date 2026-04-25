@@ -176,10 +176,7 @@ export function VariantForm({
     const body = {
       sku: values.sku?.trim() ? values.sku.trim() : null,
       stock_quantity: values.stock_quantity,
-      price_override:
-        values.price_override === null || values.price_override === undefined
-          ? null
-          : values.price_override,
+      price_override: values.price_override ?? null,
       images: values.images ?? [],
       is_active: values.is_active,
       attribute_value_ids,
