@@ -94,6 +94,38 @@ export const storeSettingsFormSchema = z.object({
 
 export type StoreSettingsFormInput = z.infer<typeof storeSettingsFormSchema>
 
+// ─── Category ─────────────────────────────────────────────────────────────────
+
+export const createCategorySchema = z.object({
+  store_id: z.string().uuid("Boutique invalide"),
+  name: z
+    .string()
+    .min(2, "Le nom doit contenir au moins 2 caractères")
+    .max(80, "Le nom ne doit pas dépasser 80 caractères"),
+  sort_order: z.number().int().min(0).default(0),
+})
+
+export type CreateCategoryInput = z.infer<typeof createCategorySchema>
+
+export const updateCategorySchema = z.object({
+  name: z
+    .string()
+    .min(2, "Le nom doit contenir au moins 2 caractères")
+    .max(80)
+    .optional(),
+  sort_order: z.number().int().min(0).optional(),
+}).refine((d) => d.name !== undefined || d.sort_order !== undefined, {
+  message: "Au moins un champ est requis",
+})
+
+export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>
+
+export const listCategoriesQuerySchema = z.object({
+  store_id: z.string().uuid("Boutique requise"),
+})
+
+export type ListCategoriesQuery = z.infer<typeof listCategoriesQuerySchema>
+
 // ─── Product ──────────────────────────────────────────────────────────────────
 
 const productFieldsSchema = z.object({
@@ -102,7 +134,7 @@ const productFieldsSchema = z.object({
     .min(2, "Le nom doit contenir au moins 2 caractères")
     .max(200, "Le nom ne doit pas dépasser 200 caractères"),
   description: z.string().max(2000).optional(),
-  category: z.string().max(100).optional(),
+  category_id: z.string().uuid("Catégorie invalide").optional().nullable(),
   base_price: z
     .number()
     .int("Le prix doit être un nombre entier en MAD")

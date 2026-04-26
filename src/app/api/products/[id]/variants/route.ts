@@ -41,10 +41,7 @@ function definitionNameFromEmbed(
 function attributeValueFromEmbed(
   av: VavExpandRow["attribute_values"]
 ): { label: string; color_hex: string | null; attribute_definitions: { name: string } | null } | null {
-  if (!av) return null
-  const row = Array.isArray(av) ? av[0] : av
-  if (!row || typeof row !== "object") return null
-  return row
+  return av ?? null
 }
 
 function mapExpandedVariant(row: VariantExpandRow): ProductVariant {

@@ -76,7 +76,7 @@ export const PATCH = withUserAuth(
 
     if (patch.name !== undefined) updateRow.name = patch.name
     if (patch.description !== undefined) updateRow.description = patch.description ?? null
-    if (patch.category !== undefined) updateRow.category = patch.category ?? null
+    if (patch.category_id !== undefined) updateRow.category_id = patch.category_id ?? null
     if (patch.base_price !== undefined) updateRow.base_price = patch.base_price
     if (patch.compare_price !== undefined) updateRow.compare_price = patch.compare_price
     if (patch.images !== undefined) updateRow.images = patch.images

@@ -15,12 +15,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { parseStoreId } from "@/lib/dashboard"
 import {
-  fetchDashboardProductCategories,
   fetchDashboardProductList,
   type DashboardProductListFilters,
 } from "@/lib/server/products-dashboard-list"
+import { fetchStoreCategories } from "@/lib/server/catalog"
 import { createClient } from "@/lib/supabase/server"
 import { cn } from "@/lib/utils"
+import type { CategoryWithCount } from "@/types"
 
 type SearchParams = Promise<{
   store?: string
@@ -143,9 +144,9 @@ async function ProductsFiltersServer({
   query: string
 }) {
   const supabase = await createClient()
-  let categories: string[] = []
+  let categories: CategoryWithCount[] = []
   try {
-    categories = await fetchDashboardProductCategories(supabase, storeId)
+    categories = await fetchStoreCategories(supabase, storeId)
   } catch {
     categories = []
   }

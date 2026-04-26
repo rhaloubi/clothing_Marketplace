@@ -28,18 +28,17 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { cn, formatPrice, normalizeProductCategoryLabel } from "@/lib/utils"
+import { cn, formatPrice } from "@/lib/utils"
+import type { CategoryWithCount } from "@/types"
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"])
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
-
-const CATEGORY_PRESETS = ["Homme", "Femme", "Enfant", "Accessoires", "Chaussures"] as const
 
 const productFormSchema = z
   .object({
     name: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(200),
     description: z.string().max(2000).optional(),
-    category: z.string().max(100).optional(),
+    category_id: z.string().uuid().optional().nullable(),
     base_price: z.coerce
       .number()
       .int("Le prix doit être un nombre entier")
@@ -77,7 +76,7 @@ type SignedUploadResponse = {
 export interface ProductFormInitialValues {
   name: string
   description?: string | null
-  category?: string | null
+  category_id?: string | null
   base_price: number
   compare_price?: number | null
   images: string[]
@@ -93,6 +92,8 @@ interface ProductFormProps {
   storeId: string
   productId?: string
   initialValues?: ProductFormInitialValues
+  /** All available categories for this store (from RSC). */
+  storeCategories?: CategoryWithCount[]
   /** Edit mode: shown in breadcrumb (e.g. product name). */
   breadcrumbLabel?: string
 }
@@ -189,6 +190,7 @@ export function ProductForm({
   storeId,
   productId,
   initialValues,
+  storeCategories = [],
   breadcrumbLabel,
 }: ProductFormProps) {
   const router = useRouter()
@@ -201,7 +203,7 @@ export function ProductForm({
     () => ({
       name: initialValues?.name ?? "",
       description: initialValues?.description ?? "",
-      category: initialValues?.category ?? "",
+      category_id: initialValues?.category_id ?? null,
       base_price: initialValues?.base_price ?? 150,
       compare_price: initialValues?.compare_price ?? undefined,
       is_active: initialValues?.is_active ?? true,
@@ -228,13 +230,6 @@ export function ProductForm({
   const previewName = useWatch({ control, name: "name", defaultValue: "" })
   const previewPrice = useWatch({ control, name: "base_price", defaultValue: 150 })
   const isFeatured = useWatch({ control, name: "is_featured", defaultValue: false })
-
-  const categorySuggestions = useMemo(() => {
-    const set = new Set<string>([...CATEGORY_PRESETS])
-    const initial = initialValues?.category?.trim()
-    if (initial) set.add(initial)
-    return [...set].sort((a, b) => a.localeCompare(b, "fr"))
-  }, [initialValues?.category])
 
   const trimmedBreadcrumb = breadcrumbLabel?.trim()
   const breadcrumbEnd =
@@ -293,11 +288,7 @@ export function ProductForm({
       ...(mode === "create" ? { store_id: storeId } : {}),
       name: values.name,
       description: values.description?.trim() ? values.description.trim() : undefined,
-      category: (() => {
-        const c = values.category?.trim()
-        if (!c) return undefined
-        return normalizeProductCategoryLabel(c)
-      })(),
+      category_id: values.category_id ?? null,
       base_price: values.base_price,
       compare_price: values.compare_price ?? null,
       images: imageUrls,
@@ -693,34 +684,39 @@ export function ProductForm({
               Catégorie
             </p>
             <Controller
-              name="category"
+              name="category_id"
               control={control}
               render={({ field }) => (
                 <div className="mt-3">
-                  <Input
-                    {...field}
-                    id="product-category"
-                    list="product-category-suggestions"
-                    autoComplete="off"
-                    placeholder="Sélectionner ou saisir une catégorie"
-                    onBlur={(e) => {
-                      const n = normalizeProductCategoryLabel(e.target.value)
-                      field.onChange(n)
-                      field.onBlur()
-                    }}
-                    className="h-11 rounded-md border-stripe-border bg-white shadow-sm focus-visible:border-stripe-purple focus-visible:ring-stripe-purple/25"
-                  />
-                  <datalist id="product-category-suggestions">
-                    {categorySuggestions.map((c) => (
-                      <option key={c} value={c} />
-                    ))}
-                  </datalist>
-                  <p className="mt-2 text-xs text-stripe-body">
-                    Choisissez une suggestion ou tapez la vôtre. La première lettre sera mise en
-                    majuscule à l&apos;enregistrement.
-                  </p>
-                  {errors.category && (
-                    <p className="mt-1 text-xs text-red-600">{errors.category.message}</p>
+                  {storeCategories.length === 0 ? (
+                    <p className="text-sm text-stripe-body">
+                      Aucune catégorie disponible.{" "}
+                      <a
+                        href={`/dashboard/products/${productId ?? ""}/variants?store=${storeId}#categories`}
+                        className="text-stripe-purple hover:underline"
+                      >
+                        Créez une catégorie
+                      </a>{" "}
+                      depuis la page déclinaisons.
+                    </p>
+                  ) : (
+                    <select
+                      id="product-category-id"
+                      value={field.value ?? ""}
+                      onChange={(e) => field.onChange(e.target.value || null)}
+                      onBlur={field.onBlur}
+                      className="h-11 w-full rounded-md border border-stripe-border bg-white px-3 text-sm text-stripe-heading shadow-sm focus:border-stripe-purple focus:outline-none focus:ring-2 focus:ring-stripe-purple/25"
+                    >
+                      <option value="">— Aucune catégorie —</option>
+                      {storeCategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {errors.category_id && (
+                    <p className="mt-1 text-xs text-red-600">{errors.category_id.message}</p>
                   )}
                 </div>
               )}

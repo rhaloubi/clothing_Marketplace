@@ -44,6 +44,23 @@ export interface Store {
   updated_at: string
 }
 
+// ─── Category ─────────────────────────────────────────────────────────────────
+
+export interface Category {
+  id: string
+  store_id: string
+  name: string
+  slug: string
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+/** Category row with product count (used in dashboard lists). */
+export interface CategoryWithCount extends Category {
+  product_count: number
+}
+
 // ─── Product & Variants ───────────────────────────────────────────────────────
 
 export interface Product {
@@ -52,6 +69,7 @@ export interface Product {
   name: string
   description: string | null
   category: string | null
+  category_id: string | null
   base_price: number
   compare_price: number | null
   images: string[]
@@ -115,6 +133,7 @@ export interface ProductDashboardListRow {
   name: string
   slug: string
   category: string | null
+  category_id: string | null
   base_price: number
   is_active: boolean
   images: string[]

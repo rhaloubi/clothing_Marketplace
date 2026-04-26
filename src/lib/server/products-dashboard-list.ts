@@ -7,29 +7,10 @@ type SB = SupabaseClient<Database>
 
 export type DashboardProductListFilters = {
   query: string
-  /** Empty string = all categories */
+  /** Empty string = all categories; UUID = filter to that category */
   category: string
   status: "all" | "active" | "draft"
   stock: "all" | "low" | "out" | "ok"
-}
-
-export async function fetchDashboardProductCategories(
-  supabase: SB,
-  storeId: string
-): Promise<string[]> {
-  const { data, error } = await supabase
-    .from("products")
-    .select("category")
-    .eq("store_id", storeId)
-
-  if (error) throw error
-
-  const set = new Set<string>()
-  for (const row of data ?? []) {
-    const c = row.category?.trim()
-    if (c) set.add(c)
-  }
-  return [...set].sort((a, b) => a.localeCompare(b, "fr"))
 }
 
 /**
@@ -55,12 +36,12 @@ export async function fetchDashboardProductList(
   if (filters.query) {
     const escaped = filters.query.replaceAll(",", "\\,")
     idQuery = idQuery.or(
-      `name.ilike.%${escaped}%,slug.ilike.%${escaped}%,category.ilike.%${escaped}%`
+      `name.ilike.%${escaped}%,slug.ilike.%${escaped}%`
     )
   }
 
   if (filters.category) {
-    idQuery = idQuery.eq("category", filters.category)
+    idQuery = idQuery.eq("category_id", filters.category)
   }
 
   if (filters.status === "active") {
@@ -125,7 +106,7 @@ export async function fetchDashboardProductList(
 
   const { data: products, error: pErr } = await supabase
     .from("products")
-    .select("id, name, slug, category, base_price, is_active, images, created_at")
+    .select("id, name, slug, category, category_id, base_price, is_active, images, created_at")
     .in("id", pageIds)
 
   if (pErr) throw pErr
@@ -145,6 +126,7 @@ export async function fetchDashboardProductList(
       name: p.name,
       slug: p.slug,
       category: p.category,
+      category_id: p.category_id,
       base_price: p.base_price,
       is_active: p.is_active,
       images: p.images ?? [],

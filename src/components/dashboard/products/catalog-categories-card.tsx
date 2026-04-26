@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { ChevronRight, Shapes } from "lucide-react"
-import type { StoreCategorySummaryRow } from "@/lib/server/catalog"
+import type { CategoryWithCount } from "@/types"
 import { cn } from "@/lib/utils"
 
 export function CatalogCategoriesCard({
@@ -8,7 +8,7 @@ export function CatalogCategoriesCard({
   rows,
 }: {
   storeId: string
-  rows: StoreCategorySummaryRow[]
+  rows: CategoryWithCount[]
 }) {
   const base = `/dashboard/products?store=${storeId}`
 
@@ -29,14 +29,14 @@ export function CatalogCategoriesCard({
         </p>
         {rows.length === 0 ? (
           <p className="px-2 py-6 text-center text-sm text-stripe-body">
-            Aucun rayon renseigné sur vos fiches produits. Indiquez un rayon à l’édition d’un produit.
+            Aucune catégorie créée. Ajoutez-en une via la page déclinaisons.
           </p>
         ) : (
           <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
             {rows.map((row) => {
-              const href = `${base}&category=${encodeURIComponent(row.category)}`
+              const href = `${base}&category=${encodeURIComponent(row.id)}`
               return (
-                <li key={row.category}>
+                <li key={row.id}>
                   <Link
                     href={href}
                     className={cn(
@@ -49,10 +49,10 @@ export function CatalogCategoriesCard({
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-stripe-heading">
-                        {row.category}
+                        {row.name}
                       </span>
                       <span className="text-xs text-stripe-body">
-                        {row.productCount} produit{row.productCount > 1 ? "s" : ""}
+                        {row.product_count} produit{row.product_count !== 1 ? "s" : ""}
                       </span>
                     </span>
                     <ChevronRight className="h-4 w-4 shrink-0 text-stripe-label" aria-hidden />

@@ -7,7 +7,7 @@ import {
   fetchAttributeDefinitionUsageCounts,
   fetchProductWithVariants,
   fetchStoreAttributeDefinitionsWithValues,
-  fetchStoreCategorySummary,
+  fetchStoreCategories,
 } from "@/lib/server/catalog"
 import { AttributeDefinitionsSection } from "@/components/dashboard/products/attribute-definitions-section"
 import { CatalogCategoriesCard } from "@/components/dashboard/products/catalog-categories-card"
@@ -35,7 +35,7 @@ export default async function ProductVariantsPage({
   const [storeAttributes, usageByDefId, categorySummary] = await Promise.all([
     fetchStoreAttributeDefinitionsWithValues(supabase, storeId),
     fetchAttributeDefinitionUsageCounts(supabase, storeId),
-    fetchStoreCategorySummary(supabase, storeId),
+    fetchStoreCategories(supabase, storeId).catch(() => []),
   ])
 
   return (

@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import type { CategoryWithCount } from "@/types"
 
 const STATUS_OPTIONS = [
   { value: "all", label: "Tous les statuts" },
@@ -59,7 +60,8 @@ export function ProductsFiltersBar({
   query,
 }: {
   storeId: string
-  categories: string[]
+  categories: CategoryWithCount[]
+  /** UUID of the selected category, or empty string for "all" */
   category: string
   status: string
   stock: string
@@ -107,8 +109,8 @@ export function ProductsFiltersBar({
           >
             <option value="">Toutes les catégories</option>
             {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
+              <option key={c.id} value={c.id}>
+                {c.name}
               </option>
             ))}
           </select>

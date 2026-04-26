@@ -251,6 +251,53 @@ export async function fetchStoreAttributeDefinitionsWithValues(
   }))
 }
 
+// ─── Categories ───────────────────────────────────────────────────────────────
+
+export type CategoryRow = {
+  id: string
+  store_id: string
+  name: string
+  slug: string
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export type CategoryWithCount = CategoryRow & { product_count: number }
+
+/** Fetch all categories for a store ordered by sort_order, with a product count. */
+export async function fetchStoreCategories(
+  supabase: SB,
+  storeId: string
+): Promise<CategoryWithCount[]> {
+  const { data: cats, error: cErr } = await supabase
+    .from("categories")
+    .select("*")
+    .eq("store_id", storeId)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true })
+
+  if (cErr) throw cErr
+  const rows = cats ?? []
+  if (rows.length === 0) return []
+
+  const ids = rows.map((c) => c.id)
+  const { data: products, error: pErr } = await supabase
+    .from("products")
+    .select("category_id")
+    .eq("store_id", storeId)
+    .in("category_id", ids)
+
+  if (pErr) throw pErr
+  const countMap = new Map<string, number>()
+  for (const p of products ?? []) {
+    if (!p.category_id) continue
+    countMap.set(p.category_id, (countMap.get(p.category_id) ?? 0) + 1)
+  }
+
+  return rows.map((c) => ({ ...c, product_count: countMap.get(c.id) ?? 0 }))
+}
+
 /** Per attribute_definition_id: count of distinct product_variants in this store that use at least one of its values. */
 export async function fetchAttributeDefinitionUsageCounts(
   supabase: SB,

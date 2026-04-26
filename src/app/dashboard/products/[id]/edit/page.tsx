@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { parseStoreId } from "@/lib/dashboard"
+import { fetchStoreCategories } from "@/lib/server/catalog"
 import { ProductForm } from "@/components/dashboard/products/product-form"
 
 type PageParams = Promise<{ id: string }>
@@ -19,16 +20,19 @@ export default async function EditProductPage({
   if (!storeId) redirect("/dashboard")
 
   const supabase = await createClient()
-  const { data: product, error } = await supabase
-    .from("products")
-    .select(
-      "id, name, description, category, base_price, compare_price, images, is_active, is_featured, slug, meta_title, meta_description"
-    )
-    .eq("id", id)
-    .eq("store_id", storeId)
-    .maybeSingle()
+  const [{ data: product, error }, storeCategories] = await Promise.all([
+    supabase
+      .from("products")
+      .select(
+        "id, name, description, category_id, base_price, compare_price, images, is_active, is_featured, slug, meta_title, meta_description"
+      )
+      .eq("id", id)
+      .eq("store_id", storeId)
+      .maybeSingle(),
+    fetchStoreCategories(supabase, storeId).catch(() => []),
+  ])
 
-  if (error || !product) notFound()
+  if (error ?? !product) notFound()
 
   return (
     <ProductForm
@@ -37,10 +41,11 @@ export default async function EditProductPage({
       storeId={storeId}
       productId={id}
       breadcrumbLabel={product.name}
+      storeCategories={storeCategories}
       initialValues={{
         name: product.name,
         description: product.description,
-        category: product.category,
+        category_id: product.category_id,
         base_price: product.base_price,
         compare_price: product.compare_price,
         images: product.images ?? [],

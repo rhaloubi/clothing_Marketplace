@@ -99,7 +99,7 @@ export const POST = withUserAuth(
         store_id,
         name: productRest.name,
         description: productRest.description ?? null,
-        category: productRest.category ?? null,
+        category_id: productRest.category_id ?? null,
         base_price: productRest.base_price,
         compare_price: productRest.compare_price ?? null,
         images: productRest.images,
