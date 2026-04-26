@@ -72,3 +72,36 @@ export function previousCasablancaDateKey(dateKey: string): string {
   const start = startOfCasablancaDayUtc(dateKey)
   return getCasablancaDateKey(new Date(start.getTime() - 1))
 }
+
+/** Next calendar day key after `dateKey` (Casablanca). */
+export function nextCasablancaDateKey(dateKey: string): string {
+  const ex = endExclusiveOfCasablancaDayUtc(dateKey)
+  return getCasablancaDateKey(ex)
+}
+
+/** Walk calendar days in Casablanca (`deltaDays` may be negative). */
+export function offsetCasablancaDateKey(dateKey: string, deltaDays: number): string {
+  let key = dateKey
+  const steps = Math.abs(deltaDays)
+  const forward = deltaDays > 0
+  for (let i = 0; i < steps; i++) {
+    key = forward ? nextCasablancaDateKey(key) : previousCasablancaDateKey(key)
+  }
+  return key
+}
+
+/** Inclusive list of `YYYY-MM-DD` keys from `startKey` through `endKey` (Casablanca). */
+export function enumerateCasablancaDateKeysInclusive(
+  startKey: string,
+  endKey: string
+): string[] {
+  const out: string[] = []
+  let k = startKey
+  for (;;) {
+    out.push(k)
+    if (k === endKey) break
+    k = nextCasablancaDateKey(k)
+    if (out.length > 400) throw new Error("enumerateCasablancaDateKeysInclusive: range too large")
+  }
+  return out
+}

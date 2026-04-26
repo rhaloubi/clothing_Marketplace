@@ -285,6 +285,64 @@ export interface RevenueDataPoint {
   orders: number
 }
 
+/** Analytics “compare” preset: rolling N calendar days (Casablanca), vs the N days before. */
+export type AnalyticsComparePreset = "7d" | "30d"
+
+/** One chart row: aligned by day index (1…N) for current vs previous period. */
+export interface AnalyticsRevenueCompareChartRow {
+  dayIndex: number
+  /** Short label (e.g. day / date) for the X axis. */
+  labelShort: string
+  current_revenue: number
+  previous_revenue: number
+  current_orders: number
+  previous_orders: number
+}
+
+/** Daily counts per analytics event type (server-aggregated only). */
+export interface AnalyticsEventsDailyRow {
+  date: string
+  page_view: number
+  product_view: number
+  cart_add: number
+  cart_remove: number
+  checkout_start: number
+  checkout_abandon: number
+  order_placed: number
+  order_delivered: number
+  order_returned: number
+}
+
+export interface AnalyticsRevenueCompareSnapshot {
+  preset: AnalyticsComparePreset
+  current_range: {
+    from_inclusive_iso: string
+    to_exclusive_iso: string
+    start_date_key: string
+    end_date_key_inclusive: string
+    label_fr: string
+  }
+  previous_range: {
+    from_inclusive_iso: string
+    to_exclusive_iso: string
+    start_date_key: string
+    end_date_key_inclusive: string
+    label_fr: string
+  }
+  series_current: RevenueDataPoint[]
+  series_previous: RevenueDataPoint[]
+  chart_rows: AnalyticsRevenueCompareChartRow[]
+  events_daily_current: AnalyticsEventsDailyRow[]
+  events_daily_previous: AnalyticsEventsDailyRow[]
+  summary: {
+    current: { revenue_mad: number; orders: number; avg_order_mad: number }
+    previous: { revenue_mad: number; orders: number; avg_order_mad: number }
+    delta_revenue_pct: number | null
+    delta_orders_pct: number | null
+    delta_avg_order_pct: number | null
+  }
+}
+
 export interface FunnelData {
   product_views: number
   cart_adds: number

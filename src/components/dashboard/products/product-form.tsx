@@ -168,7 +168,7 @@ async function uploadImagesWithConcurrency(
   concurrency = 3
 ): Promise<string[]> {
   const size = Math.max(1, Math.min(concurrency, files.length))
-  const uploaded: string[] = new Array(files.length)
+  const uploaded: string[] = Array.from({ length: files.length }, () => "")
   let index = 0
 
   async function worker() {

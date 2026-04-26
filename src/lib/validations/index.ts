@@ -478,6 +478,14 @@ export const analyticsRangeQuerySchema = z.object({
 
 export type AnalyticsRangeQuery = z.infer<typeof analyticsRangeQuerySchema>
 
+/** GET /api/analytics/revenue-compare — rolling windows in Africa/Casablanca. */
+export const analyticsCompareQuerySchema = z.object({
+  store_id: z.string().uuid("Boutique requise"),
+  preset: z.enum(["7d", "30d"]).default("30d"),
+})
+
+export type AnalyticsCompareQuery = z.infer<typeof analyticsCompareQuerySchema>
+
 const analyticsEventTypeSchema = z.enum([
   "page_view",
   "product_view",
