@@ -208,6 +208,42 @@ export const updateProductSchema = productFieldsSchema
 
 export type UpdateProductInput = z.infer<typeof updateProductSchema>
 
+/**
+ * Dashboard product form schema (client-side): accepts string inputs from form controls.
+ */
+export const productFormSchema = z
+  .object({
+    name: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(200),
+    description: z.string().max(2000).optional(),
+    category_id: z.string().uuid().optional().nullable(),
+    base_price: z.coerce
+      .number()
+      .int("Le prix doit être un nombre entier")
+      .min(1, "Le prix doit être supérieur à 0")
+      .max(100000, "Prix trop élevé"),
+    compare_price: z
+      .preprocess(
+        (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),
+        z.number().int().min(1).optional()
+      )
+      .optional(),
+    is_active: z.boolean().default(true),
+    is_featured: z.boolean().default(false),
+    slug: z.string().max(80).optional(),
+    meta_title: z.string().max(60).optional(),
+    meta_description: z.string().max(160).optional(),
+  })
+  .refine(
+    (data) =>
+      data.compare_price === undefined ||
+      data.compare_price === null ||
+      data.compare_price > data.base_price,
+    { message: "Le prix barré doit être supérieur au prix de vente", path: ["compare_price"] }
+  )
+
+export type ProductFormInputSchema = z.input<typeof productFormSchema>
+export type ProductFormSubmitSchema = z.output<typeof productFormSchema>
+
 export const listProductsQuerySchema = z.object({
   store_id: z.string().uuid("Boutique requise"),
   limit: z.coerce.number().int().min(1).max(100).default(50),

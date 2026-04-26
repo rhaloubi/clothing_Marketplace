@@ -1,7 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -17,7 +17,6 @@ import {
   X,
 } from "lucide-react"
 import { nanoid } from "nanoid"
-import { z } from "zod"
 import { apiFetch, ApiClientError } from "@/lib/api-client"
 import { toast } from "sonner"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -28,42 +27,20 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import { CreateCategoryDialog } from "@/components/dashboard/products/inline-category-dialogs"
 import { cn, formatPrice } from "@/lib/utils"
+import {
+  productFormSchema,
+  type ProductFormInputSchema,
+  type ProductFormSubmitSchema,
+} from "@/lib/validations"
 import type { CategoryWithCount } from "@/types"
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"])
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
-const productFormSchema = z
-  .object({
-    name: z.string().min(2, "Le nom doit contenir au moins 2 caractères").max(200),
-    description: z.string().max(2000).optional(),
-    category_id: z.string().uuid().optional().nullable(),
-    base_price: z.coerce
-      .number()
-      .int("Le prix doit être un nombre entier")
-      .min(1, "Le prix doit être supérieur à 0")
-      .max(100000, "Prix trop élevé"),
-    compare_price: z
-      .preprocess(
-        (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),
-        z.number().int().min(1).optional()
-      )
-      .optional(),
-    is_active: z.boolean().default(true),
-    is_featured: z.boolean().default(false),
-    slug: z.string().max(80).optional(),
-    meta_title: z.string().max(60).optional(),
-    meta_description: z.string().max(160).optional(),
-  })
-  .refine(
-    (data) =>
-      data.compare_price === undefined || data.compare_price === null || data.compare_price > data.base_price,
-    { message: "Le prix barré doit être supérieur au prix de vente", path: ["compare_price"] }
-  )
-
-type ProductFormInput = z.input<typeof productFormSchema>
-type ProductFormSubmit = z.output<typeof productFormSchema>
+type ProductFormInput = ProductFormInputSchema
+type ProductFormSubmit = ProductFormSubmitSchema
 
 type SignedUploadResponse = {
   bucket: string
@@ -185,6 +162,27 @@ async function uploadProductImage(file: File, storeId: string): Promise<string> 
   return supabasePublicObjectUrl(data.bucket, data.path)
 }
 
+async function uploadImagesWithConcurrency(
+  files: File[],
+  storeId: string,
+  concurrency = 3
+): Promise<string[]> {
+  const size = Math.max(1, Math.min(concurrency, files.length))
+  const uploaded: string[] = new Array(files.length)
+  let index = 0
+
+  async function worker() {
+    while (index < files.length) {
+      const current = index
+      index += 1
+      uploaded[current] = await uploadProductImage(files[current]!, storeId)
+    }
+  }
+
+  await Promise.all(Array.from({ length: size }, () => worker()))
+  return uploaded
+}
+
 export function ProductForm({
   mode,
   storeId,
@@ -196,6 +194,8 @@ export function ProductForm({
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [imageUrls, setImageUrls] = useState<string[]>(() => initialValues?.images ?? [])
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
+  const [localCategories, setLocalCategories] = useState<CategoryWithCount[]>(storeCategories)
   const [uploading, setUploading] = useState(false)
   const [imagesError, setImagesError] = useState<string | null>(null)
 
@@ -231,6 +231,10 @@ export function ProductForm({
   const previewPrice = useWatch({ control, name: "base_price", defaultValue: 150 })
   const isFeatured = useWatch({ control, name: "is_featured", defaultValue: false })
 
+  useEffect(() => {
+    setLocalCategories(storeCategories)
+  }, [storeCategories])
+
   const trimmedBreadcrumb = breadcrumbLabel?.trim()
   const breadcrumbEnd =
     mode === "create"
@@ -257,11 +261,7 @@ export function ProductForm({
 
     setUploading(true)
     try {
-      const urls: string[] = []
-      for (const file of list) {
-        const url = await uploadProductImage(file, storeId)
-        urls.push(url)
-      }
+      const urls = await uploadImagesWithConcurrency(list, storeId, 3)
       setImageUrls((prev) => [...prev, ...urls])
     } catch (e) {
       if (e instanceof ApiClientError) {
@@ -317,7 +317,6 @@ export function ProductForm({
       }
 
       router.push(`/dashboard/products?store=${storeId}`)
-      router.refresh()
     } catch (e) {
       if (e instanceof ApiClientError) {
         if (e.fields) {
@@ -340,7 +339,8 @@ export function ProductForm({
   }
 
   return (
-    <form
+    <>
+      <form
       onSubmit={handleSubmit((values) => void saveProduct(values, { asDraft: false }))}
       className="space-y-6"
     >
@@ -688,33 +688,34 @@ export function ProductForm({
               control={control}
               render={({ field }) => (
                 <div className="mt-3">
-                  {storeCategories.length === 0 ? (
-                    <p className="text-sm text-stripe-body">
-                      Aucune catégorie disponible.{" "}
-                      <a
-                        href={`/dashboard/products/${productId ?? ""}/variants?store=${storeId}#categories`}
-                        className="text-stripe-purple hover:underline"
-                      >
-                        Créez une catégorie
-                      </a>{" "}
-                      depuis la page déclinaisons.
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-xs text-stripe-body">
+                      Choisissez une catégorie ou ajoutez-en une nouvelle.
                     </p>
-                  ) : (
-                    <select
-                      id="product-category-id"
-                      value={field.value ?? ""}
-                      onChange={(e) => field.onChange(e.target.value || null)}
-                      onBlur={field.onBlur}
-                      className="h-11 w-full rounded-md border border-stripe-border bg-white px-3 text-sm text-stripe-heading shadow-sm focus:border-stripe-purple focus:outline-none focus:ring-2 focus:ring-stripe-purple/25"
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 rounded-md border-stripe-border text-xs"
+                      onClick={() => setCategoryDialogOpen(true)}
                     >
-                      <option value="">— Aucune catégorie —</option>
-                      {storeCategories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                      + Ajouter
+                    </Button>
+                  </div>
+                  <select
+                    id="product-category-id"
+                    value={field.value ?? ""}
+                    onChange={(e) => field.onChange(e.target.value || null)}
+                    onBlur={field.onBlur}
+                    className="h-11 w-full rounded-md border border-stripe-border bg-white px-3 text-sm text-stripe-heading shadow-sm focus:border-stripe-purple focus:outline-none focus:ring-2 focus:ring-stripe-purple/25"
+                  >
+                    <option value="">— Aucune catégorie —</option>
+                    {localCategories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                   {errors.category_id && (
                     <p className="mt-1 text-xs text-red-600">{errors.category_id.message}</p>
                   )}
@@ -796,6 +797,19 @@ export function ProductForm({
           </Button>
         </div>
       </div>
-    </form>
+      </form>
+      <CreateCategoryDialog
+        open={categoryDialogOpen}
+        onOpenChange={setCategoryDialogOpen}
+        storeId={storeId}
+        onCreated={(category) => {
+          setLocalCategories((prev) => {
+            if (prev.some((c) => c.id === category.id)) return prev
+            return [...prev, category].sort((a, b) => a.name.localeCompare(b.name, "fr"))
+          })
+          setValue("category_id", category.id)
+        }}
+      />
+    </>
   )
 }

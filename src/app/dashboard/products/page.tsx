@@ -214,14 +214,13 @@ async function ProductsContent({
   }
 
   if (total === 0) {
-    const { count, error: cErr } = await supabase
-      .from("products")
-      .select("id", { count: "exact", head: true })
-      .eq("store_id", storeId)
+    const hasActiveFilters =
+      filters.query.length > 0 ||
+      filters.category.length > 0 ||
+      filters.status !== "all" ||
+      filters.stock !== "all"
 
-    const anyInStore = !cErr && (count ?? 0) > 0
-
-    if (!anyInStore) {
+    if (!hasActiveFilters) {
       return (
         <DashboardEmptyState
           icon={Package}

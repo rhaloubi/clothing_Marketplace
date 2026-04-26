@@ -281,18 +281,37 @@ export async function fetchStoreCategories(
   const rows = cats ?? []
   if (rows.length === 0) return []
 
-  const ids = rows.map((c) => c.id)
-  const { data: products, error: pErr } = await supabase
-    .from("products")
-    .select("category_id")
-    .eq("store_id", storeId)
-    .in("category_id", ids)
-
-  if (pErr) throw pErr
   const countMap = new Map<string, number>()
-  for (const p of products ?? []) {
-    if (!p.category_id) continue
-    countMap.set(p.category_id, (countMap.get(p.category_id) ?? 0) + 1)
+
+  // Prefer DB aggregation via RPC when available.
+  const { data: counts, error: countErr } = await (supabase as unknown as {
+    rpc: (
+      fn: string,
+      args: Record<string, unknown>
+    ) => Promise<{ data: unknown; error: unknown }>
+  }).rpc("get_store_category_counts", { p_store_id: storeId })
+
+  if (!countErr) {
+    for (const row of (counts ?? []) as unknown as {
+      category_id: string
+      product_count: number
+    }[]) {
+      countMap.set(row.category_id, row.product_count ?? 0)
+    }
+  } else {
+    // Backward-compatible fallback until the DB function is deployed everywhere.
+    const ids = rows.map((c) => c.id)
+    const { data: products, error: pErr } = await supabase
+      .from("products")
+      .select("category_id")
+      .eq("store_id", storeId)
+      .in("category_id", ids)
+
+    if (pErr) throw pErr
+    for (const p of products ?? []) {
+      if (!p.category_id) continue
+      countMap.set(p.category_id, (countMap.get(p.category_id) ?? 0) + 1)
+    }
   }
 
   return rows.map((c) => ({ ...c, product_count: countMap.get(c.id) ?? 0 }))
