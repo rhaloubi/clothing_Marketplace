@@ -11,6 +11,7 @@ import {
 import { ProductsFiltersBar } from "@/components/dashboard/products/products-filters"
 import { ProductsPaginationBar } from "@/components/dashboard/products/products-pagination"
 import { ProductsTable } from "@/components/dashboard/products/products-table"
+import { DashboardHomeRefreshButton } from "@/components/dashboard/home/dashboard-home-refresh-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { parseStoreId } from "@/lib/dashboard"
@@ -92,13 +93,16 @@ export default async function ProductsPage({
             variantes pour chaque article.
           </p>
         </div>
-        <Link
-          href={`/dashboard/products/new?store=${storeId}`}
-          className={cn(dashboardLinkPrimary, "shrink-0 gap-2")}
-        >
-          <Plus className="h-4 w-4 shrink-0" aria-hidden />
-          Ajouter un produit
-        </Link>
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+          <DashboardHomeRefreshButton className="h-11 min-h-11" />
+          <Link
+            href={`/dashboard/products/new?store=${storeId}`}
+            className={cn(dashboardLinkPrimary, "gap-2")}
+          >
+            <Plus className="h-4 w-4 shrink-0" aria-hidden />
+            Ajouter un produit
+          </Link>
+        </div>
       </div>
 
       <Card className="rounded-md border border-stripe-border bg-white shadow-stripe-card ring-0">

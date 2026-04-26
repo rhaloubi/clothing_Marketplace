@@ -210,7 +210,6 @@ export function VariantForm({
         toast.success("Déclinaison mise à jour")
       }
       router.push(`/dashboard/products/${productId}/variants?store=${storeId}`)
-      router.refresh()
     } catch (e) {
       if (e instanceof ApiClientError) toast.error(e.message)
       else toast.error("Impossible d’enregistrer.")

@@ -175,7 +175,9 @@ async function uploadImagesWithConcurrency(
     while (index < files.length) {
       const current = index
       index += 1
-      uploaded[current] = await uploadProductImage(files[current]!, storeId)
+      const file = files[current]
+      if (!file) continue
+      uploaded[current] = await uploadProductImage(file, storeId)
     }
   }
 

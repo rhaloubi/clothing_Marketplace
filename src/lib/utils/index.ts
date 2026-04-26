@@ -11,6 +11,15 @@ export function cn(...inputs: ClassValue[]) {
 /** Seuil « stock bas » pour les listes inventaire (dashboard). */
 export const PRODUCT_LIST_LOW_STOCK_THRESHOLD = 10
 
+export {
+  MOROCCO_TIMEZONE,
+  endExclusiveOfCasablancaDayUtc,
+  getCasablancaDateKey,
+  getCasablancaDayBoundsUtc,
+  previousCasablancaDateKey,
+  startOfCasablancaDayUtc,
+} from "./morocco-time"
+
 // ─── Price formatting ─────────────────────────────────────────────────────────
 
 /**

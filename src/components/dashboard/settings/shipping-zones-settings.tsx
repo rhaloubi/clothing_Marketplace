@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, Pencil, Plus, Trash2 } from "lucide-react"
-import { z } from "zod"
 import {
   dashboardTableBodyRowClass,
   dashboardTableHeadClass,
@@ -24,23 +23,15 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { ApiClientError, apiFetch } from "@/lib/api-client"
+import {
+  shippingZoneFormSchema,
+  type ShippingZoneFormInput,
+} from "@/lib/validations"
 import { formatPrice } from "@/lib/utils"
 import type { ShippingZoneWithWilaya, Wilaya } from "@/types"
 import { toast } from "sonner"
 
-const zoneFormSchema = z
-  .object({
-    wilaya_id: z.coerce.number().int().min(1).max(12),
-    price_mad: z.coerce.number().int().min(0),
-    estimated_days_min: z.coerce.number().int().min(1),
-    estimated_days_max: z.coerce.number().int().min(1),
-  })
-  .refine((d) => d.estimated_days_max >= d.estimated_days_min, {
-    message: "Le délai max doit être ≥ au délai min",
-    path: ["estimated_days_max"],
-  })
-
-type ZoneFormValues = z.infer<typeof zoneFormSchema>
+type ZoneFormValues = ShippingZoneFormInput
 
 function formatDelayLabel(min: number, max: number): string {
   if (min === max) return `${min} jour${min > 1 ? "s" : ""}`
@@ -238,7 +229,7 @@ function ZoneSheet({
     reset,
     formState: { errors, isSubmitting },
   } = useForm<ZoneFormValues>({
-    resolver: zodResolver(zoneFormSchema),
+    resolver: zodResolver(shippingZoneFormSchema),
     defaultValues: defaults,
   })
 

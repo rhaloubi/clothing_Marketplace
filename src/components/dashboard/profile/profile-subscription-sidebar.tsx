@@ -40,9 +40,11 @@ function planTitle(name: PlanName): string {
 }
 
 export function ProfileSubscriptionSidebar({
+  storeId,
   subscription,
   plans,
 }: {
+  storeId: string | null
   subscription: SubscriptionWithPlan
   plans: Plan[]
 }) {
@@ -147,7 +149,11 @@ export function ProfileSubscriptionSidebar({
               Statistiques.
             </p>
             <Link
-              href="/dashboard/analytics"
+              href={
+                storeId
+                  ? `/dashboard/analytics?store=${storeId}`
+                  : "/dashboard/analytics"
+              }
               className="mt-2 inline-flex h-11 w-full items-center justify-center rounded-md bg-white text-sm font-medium text-stripe-heading shadow-sm transition-colors hover:bg-stripe-canvas"
             >
               Voir les statistiques

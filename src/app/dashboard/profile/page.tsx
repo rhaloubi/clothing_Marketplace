@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { parseStoreId } from "@/lib/dashboard"
 import { ProfilePersonalForm } from "@/components/dashboard/profile/profile-personal-form"
 import { ProfilePlanComparison } from "@/components/dashboard/profile/profile-plan-comparison"
 import { ProfileSecurityCard } from "@/components/dashboard/profile/profile-security-card"
@@ -44,7 +45,15 @@ function parseSubscriptionStatus(raw: string): SubscriptionStatus {
     : "active"
 }
 
-export default async function ProfilePage() {
+type SearchParams = Promise<{ store?: string }>
+
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: SearchParams
+}) {
+  const params = await searchParams
+  const storeId = parseStoreId(params.store)
   const supabase = await createClient()
   const {
     data: { user },
@@ -122,6 +131,7 @@ export default async function ProfilePage() {
           <ProfilePlanComparison plans={data.plans} />
         </div>
         <ProfileSubscriptionSidebar
+          storeId={storeId}
           subscription={data.subscription}
           plans={data.plans}
         />

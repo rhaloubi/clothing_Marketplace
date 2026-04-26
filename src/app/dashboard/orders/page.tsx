@@ -17,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { fetchOrdersList } from "@/lib/server/orders-list"
 import { OrdersTable, type OrderTableRow } from "@/components/dashboard/orders/orders-table"
+import { DashboardHomeRefreshButton } from "@/components/dashboard/home/dashboard-home-refresh-button"
 import { orderStatusSchema } from "@/lib/validations"
 
 type SearchParams = Promise<{
@@ -113,7 +114,8 @@ export default async function OrdersPage({
               )
             })}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <DashboardHomeRefreshButton className="h-10 min-h-10" />
             <Link
               href={`/dashboard/orders?${(() => {
                 const p = new URLSearchParams(baseParams)

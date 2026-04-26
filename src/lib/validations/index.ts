@@ -329,6 +329,21 @@ export const shippingZoneSchema = shippingZoneBase.refine(
 
 export type ShippingZoneInput = z.infer<typeof shippingZoneSchema>
 
+/** Client form schema (coerces string inputs from HTML controls). */
+export const shippingZoneFormSchema = z
+  .object({
+    wilaya_id: z.coerce.number().int().min(1).max(12),
+    price_mad: z.coerce.number().int().min(0),
+    estimated_days_min: z.coerce.number().int().min(1),
+    estimated_days_max: z.coerce.number().int().min(1),
+  })
+  .refine((d) => d.estimated_days_max >= d.estimated_days_min, {
+    message: "Le délai max doit être ≥ au délai min",
+    path: ["estimated_days_max"],
+  })
+
+export type ShippingZoneFormInput = z.infer<typeof shippingZoneFormSchema>
+
 export const updateShippingZoneSchema = shippingZoneBase.partial().refine(
   (data) =>
     data.estimated_days_min === undefined ||
