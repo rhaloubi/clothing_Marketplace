@@ -14,6 +14,7 @@ export const PRODUCT_LIST_LOW_STOCK_THRESHOLD = 10
 export {
   MOROCCO_TIMEZONE,
   endExclusiveOfCasablancaDayUtc,
+  countCasablancaDaysInclusive,
   enumerateCasablancaDateKeysInclusive,
   getCasablancaDateKey,
   getCasablancaDayBoundsUtc,

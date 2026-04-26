@@ -105,3 +105,8 @@ export function enumerateCasablancaDateKeysInclusive(
   }
   return out
 }
+
+/** Inclusive day count between two Casablanca date keys. */
+export function countCasablancaDaysInclusive(startKey: string, endKey: string): number {
+  return enumerateCasablancaDateKeysInclusive(startKey, endKey).length
+}

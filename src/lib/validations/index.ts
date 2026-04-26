@@ -479,12 +479,47 @@ export const analyticsRangeQuerySchema = z.object({
 export type AnalyticsRangeQuery = z.infer<typeof analyticsRangeQuerySchema>
 
 /** GET /api/analytics/revenue-compare — rolling windows in Africa/Casablanca. */
-export const analyticsCompareQuerySchema = z.object({
-  store_id: z.string().uuid("Boutique requise"),
-  preset: z.enum(["7d", "30d"]).default("30d"),
-})
+const analyticsDateKeyQuerySchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide (AAAA-MM-JJ).")
+
+export const analyticsWindowQuerySchema = z
+  .object({
+    store_id: z.string().uuid("Boutique requise"),
+    preset: z.enum(["today", "yesterday", "7d", "30d", "custom"]).default("30d"),
+    from: analyticsDateKeyQuerySchema.optional(),
+    to: analyticsDateKeyQuerySchema.optional(),
+  })
+  .superRefine((d, ctx) => {
+    if (d.preset === "custom") {
+      if (!d.from) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Date de début requise pour la période personnalisée.",
+          path: ["from"],
+        })
+      }
+      if (!d.to) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Date de fin requise pour la période personnalisée.",
+          path: ["to"],
+        })
+      }
+      if (d.from && d.to && d.from > d.to) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "La date de fin doit être après ou égale au début.",
+          path: ["to"],
+        })
+      }
+    }
+  })
+
+export const analyticsCompareQuerySchema = analyticsWindowQuerySchema
 
 export type AnalyticsCompareQuery = z.infer<typeof analyticsCompareQuerySchema>
+export type AnalyticsWindowQuery = z.infer<typeof analyticsWindowQuerySchema>
 
 const analyticsEventTypeSchema = z.enum([
   "page_view",

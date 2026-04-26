@@ -8,15 +8,11 @@ import {
 import { fetchAnalyticsRevenueCompareSnapshot } from "@/lib/server/analytics-compare"
 import type { Database } from "@/types/database.types"
 import type { AnalyticsComparePreset } from "@/types"
+import { analyticsWindowQuerySchema } from "@/lib/validations"
 
 type PlanRow = Database["public"]["Tables"]["plans"]["Row"]
 
-type SearchParams = Promise<{ store?: string; preset?: string }>
-
-function parsePreset(raw: string | undefined): AnalyticsComparePreset {
-  if (raw === "7d" || raw === "30d") return raw
-  return "30d"
-}
+type SearchParams = Promise<{ store?: string; preset?: string; from?: string; to?: string }>
 
 export default async function AnalyticsPage({
   searchParams,
@@ -24,10 +20,16 @@ export default async function AnalyticsPage({
   searchParams: SearchParams
 }) {
   const params = await searchParams
-  const storeId = parseStoreId(params.store)
+  const parsedWindow = analyticsWindowQuerySchema.safeParse({
+    store_id: params.store,
+    preset: params.preset,
+    from: params.from,
+    to: params.to,
+  })
+  if (!parsedWindow.success) redirect("/dashboard")
+  const storeId = parseStoreId(parsedWindow.data.store_id)
   if (!storeId) redirect("/dashboard")
-
-  const preset = parsePreset(params.preset)
+  const preset = parsedWindow.data.preset as AnalyticsComparePreset
 
   const supabase = await createClient()
   const {
@@ -66,7 +68,10 @@ export default async function AnalyticsPage({
 
   let snapshot = null as Awaited<ReturnType<typeof fetchAnalyticsRevenueCompareSnapshot>> | null
   try {
-    snapshot = await fetchAnalyticsRevenueCompareSnapshot(supabase, storeId, preset)
+    snapshot = await fetchAnalyticsRevenueCompareSnapshot(supabase, storeId, preset, {
+      from: parsedWindow.data.from,
+      to: parsedWindow.data.to,
+    })
   } catch {
     snapshot = null
   }
@@ -81,5 +86,13 @@ export default async function AnalyticsPage({
     )
   }
 
-  return <AnalyticsCompareView storeId={storeId} snapshot={snapshot} preset={preset} />
+  return (
+    <AnalyticsCompareView
+      storeId={storeId}
+      snapshot={snapshot}
+      preset={preset}
+      from={parsedWindow.data.from}
+      to={parsedWindow.data.to}
+    />
+  )
 }

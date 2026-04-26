@@ -2,16 +2,14 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/database.types"
 import type {
   AnalyticsComparePreset,
-  AnalyticsEventsDailyRow,
   AnalyticsRevenueCompareChartRow,
   AnalyticsRevenueCompareSnapshot,
   AnalyticsEventType,
   RevenueDataPoint,
 } from "@/types"
-import { orderCountsAsRevenue } from "@/lib/server/analytics-query"
+import { orderCountsAsRevenue, resolveAnalyticsDateWindow } from "@/lib/server/analytics-query"
 import {
   MOROCCO_TIMEZONE,
-  endExclusiveOfCasablancaDayUtc,
   enumerateCasablancaDateKeysInclusive,
   getCasablancaDateKey,
   offsetCasablancaDateKey,
@@ -32,21 +30,6 @@ export const ANALYTICS_COMPARE_EVENT_TYPES: AnalyticsEventType[] = [
   "order_delivered",
   "order_returned",
 ]
-
-function emptyEventsRow(date: string): AnalyticsEventsDailyRow {
-  return {
-    date,
-    page_view: 0,
-    product_view: 0,
-    cart_add: 0,
-    cart_remove: 0,
-    checkout_start: 0,
-    checkout_abandon: 0,
-    order_placed: 0,
-    order_delivered: 0,
-    order_returned: 0,
-  }
-}
 
 function formatRangeLabelFr(startDateKey: string, endDateKeyInclusive: string): string {
   const d1 = startOfCasablancaDayUtc(startDateKey)
@@ -71,6 +54,7 @@ function shortDayLabel(dateKey: string): string {
 
 export function resolveRollingCompareRangesCasablanca(
   preset: AnalyticsComparePreset,
+  custom?: { from?: string; to?: string },
   now: Date = new Date()
 ): {
   n: number
@@ -87,24 +71,28 @@ export function resolveRollingCompareRangesCasablanca(
     to_exclusive_iso: string
   }
 } {
-  const n = preset === "7d" ? 7 : 30
-  const todayKey = getCasablancaDateKey(now)
-  const startKey = offsetCasablancaDateKey(todayKey, -(n - 1))
-  const currentFrom = startOfCasablancaDayUtc(startKey).toISOString()
-  const currentToExclusive = endExclusiveOfCasablancaDayUtc(todayKey).toISOString()
+  const currentWindow = resolveAnalyticsDateWindow({
+    preset,
+    from: custom?.from,
+    to: custom?.to,
+    now,
+  })
+  const n = currentWindow.day_count
+  const todayKey = currentWindow.end_date_key_inclusive
+  const startKey = currentWindow.start_date_key
 
   const prevEndKey = previousCasablancaDateKey(startKey)
   const prevStartKey = offsetCasablancaDateKey(prevEndKey, -(n - 1))
   const previousFrom = startOfCasablancaDayUtc(prevStartKey).toISOString()
-  const previousToExclusive = endExclusiveOfCasablancaDayUtc(prevEndKey).toISOString()
+  const previousToExclusive = startOfCasablancaDayUtc(startKey).toISOString()
 
   return {
     n,
     current: {
       start_date_key: startKey,
       end_date_key_inclusive: todayKey,
-      from_inclusive_iso: currentFrom,
-      to_exclusive_iso: currentToExclusive,
+      from_inclusive_iso: currentWindow.from_inclusive_iso,
+      to_exclusive_iso: currentWindow.to_exclusive_iso,
     },
     previous: {
       start_date_key: prevStartKey,
@@ -158,53 +146,6 @@ function revenueSeriesForKeys(
   })
 }
 
-async function fetchEventsForRange(
-  supabase: SB,
-  storeId: string,
-  fromInclusiveIso: string,
-  toExclusiveIso: string
-): Promise<{ created_at: string; event_type: string }[]> {
-  const { data, error } = await supabase
-    .from("analytics_events")
-    .select("created_at, event_type")
-    .eq("store_id", storeId)
-    .gte("created_at", fromInclusiveIso)
-    .lt("created_at", toExclusiveIso)
-
-  if (error) throw error
-  return (data ?? []) as { created_at: string; event_type: string }[]
-}
-
-function buildEventsByDay(
-  rows: { created_at: string; event_type: string }[]
-): Map<string, AnalyticsEventsDailyRow> {
-  const map = new Map<string, AnalyticsEventsDailyRow>()
-  for (const r of rows) {
-    const day = getCasablancaDateKey(new Date(r.created_at))
-    let row = map.get(day)
-    if (!row) {
-      row = emptyEventsRow(day)
-      map.set(day, row)
-    }
-    const t = r.event_type as AnalyticsEventType
-    if (ANALYTICS_COMPARE_EVENT_TYPES.includes(t)) {
-      row[t] += 1
-    }
-  }
-  return map
-}
-
-function eventsSeriesForKeys(
-  keys: string[],
-  byDay: Map<string, AnalyticsEventsDailyRow>
-): AnalyticsEventsDailyRow[] {
-  return keys.map((date) => {
-    const existing = byDay.get(date)
-    if (existing) return existing
-    return emptyEventsRow(date)
-  })
-}
-
 function totalsFromRevenueSeries(series: RevenueDataPoint[]): {
   revenue_mad: number
   orders: number
@@ -229,9 +170,10 @@ function pctDelta(current: number, previous: number): number | null {
 export async function fetchAnalyticsRevenueCompareSnapshot(
   supabase: SB,
   storeId: string,
-  preset: AnalyticsComparePreset
+  preset: AnalyticsComparePreset,
+  custom?: { from?: string; to?: string }
 ): Promise<AnalyticsRevenueCompareSnapshot> {
-  const ranges = resolveRollingCompareRangesCasablanca(preset)
+  const ranges = resolveRollingCompareRangesCasablanca(preset, custom)
   const currentKeys = enumerateCasablancaDateKeysInclusive(
     ranges.current.start_date_key,
     ranges.current.end_date_key_inclusive
@@ -244,8 +186,6 @@ export async function fetchAnalyticsRevenueCompareSnapshot(
   const [
     curOrders,
     prevOrders,
-    curEvents,
-    prevEvents,
   ] = await Promise.all([
     fetchOrdersForRange(
       supabase,
@@ -259,29 +199,12 @@ export async function fetchAnalyticsRevenueCompareSnapshot(
       ranges.previous.from_inclusive_iso,
       ranges.previous.to_exclusive_iso
     ),
-    fetchEventsForRange(
-      supabase,
-      storeId,
-      ranges.current.from_inclusive_iso,
-      ranges.current.to_exclusive_iso
-    ),
-    fetchEventsForRange(
-      supabase,
-      storeId,
-      ranges.previous.from_inclusive_iso,
-      ranges.previous.to_exclusive_iso
-    ),
   ])
 
   const curByDay = buildRevenueByDay(curOrders)
   const prevByDay = buildRevenueByDay(prevOrders)
   const series_current = revenueSeriesForKeys(currentKeys, curByDay)
   const series_previous = revenueSeriesForKeys(previousKeys, prevByDay)
-
-  const curEvByDay = buildEventsByDay(curEvents)
-  const prevEvByDay = buildEventsByDay(prevEvents)
-  const events_daily_current = eventsSeriesForKeys(currentKeys, curEvByDay)
-  const events_daily_previous = eventsSeriesForKeys(previousKeys, prevEvByDay)
 
   const chart_rows: AnalyticsRevenueCompareChartRow[] = []
   const n = ranges.n
@@ -304,6 +227,11 @@ export async function fetchAnalyticsRevenueCompareSnapshot(
 
   return {
     preset,
+    window: resolveAnalyticsDateWindow({
+      preset,
+      from: custom?.from,
+      to: custom?.to,
+    }),
     current_range: {
       from_inclusive_iso: ranges.current.from_inclusive_iso,
       to_exclusive_iso: ranges.current.to_exclusive_iso,
@@ -324,11 +252,7 @@ export async function fetchAnalyticsRevenueCompareSnapshot(
         ranges.previous.end_date_key_inclusive
       ),
     },
-    series_current,
-    series_previous,
     chart_rows,
-    events_daily_current,
-    events_daily_previous,
     summary: {
       current: curTotals,
       previous: prevTotals,

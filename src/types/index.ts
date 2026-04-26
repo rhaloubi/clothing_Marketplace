@@ -285,8 +285,20 @@ export interface RevenueDataPoint {
   orders: number
 }
 
-/** Analytics “compare” preset: rolling N calendar days (Casablanca), vs the N days before. */
-export type AnalyticsComparePreset = "7d" | "30d"
+/** Shared analytics window presets in Casablanca timezone. */
+export type AnalyticsDatePreset = "today" | "yesterday" | "7d" | "30d" | "custom"
+/** Compare presets reuse the same options. */
+export type AnalyticsComparePreset = AnalyticsDatePreset
+
+export interface AnalyticsDateWindow {
+  preset: AnalyticsDatePreset
+  start_date_key: string
+  end_date_key_inclusive: string
+  from_inclusive_iso: string
+  to_exclusive_iso: string
+  day_count: number
+  label_fr: string
+}
 
 /** One chart row: aligned by day index (1…N) for current vs previous period. */
 export interface AnalyticsRevenueCompareChartRow {
@@ -315,6 +327,7 @@ export interface AnalyticsEventsDailyRow {
 
 export interface AnalyticsRevenueCompareSnapshot {
   preset: AnalyticsComparePreset
+  window: AnalyticsDateWindow
   current_range: {
     from_inclusive_iso: string
     to_exclusive_iso: string
@@ -329,11 +342,7 @@ export interface AnalyticsRevenueCompareSnapshot {
     end_date_key_inclusive: string
     label_fr: string
   }
-  series_current: RevenueDataPoint[]
-  series_previous: RevenueDataPoint[]
   chart_rows: AnalyticsRevenueCompareChartRow[]
-  events_daily_current: AnalyticsEventsDailyRow[]
-  events_daily_previous: AnalyticsEventsDailyRow[]
   summary: {
     current: { revenue_mad: number; orders: number; avg_order_mad: number }
     previous: { revenue_mad: number; orders: number; avg_order_mad: number }
@@ -341,6 +350,85 @@ export interface AnalyticsRevenueCompareSnapshot {
     delta_orders_pct: number | null
     delta_avg_order_pct: number | null
   }
+}
+
+export interface AnalyticsOverviewDailyRow {
+  date: string
+  totalOrders: number
+  completedOrders: number
+  cancelledOrders: number
+  inProgressOrders: number
+  completionRate: number
+  cancellationRate: number
+}
+
+export interface AnalyticsOverviewSnapshot {
+  window: AnalyticsDateWindow
+  dailyStats: AnalyticsOverviewDailyRow[]
+  summary: {
+    totalOrders: number
+    completedOrders: number
+    cancelledOrders: number
+    inProgressOrders: number
+    completionRate: number
+    cancellationRate: number
+  }
+}
+
+export interface AnalyticsRevenueSnapshot {
+  window: AnalyticsDateWindow
+  dailySales: RevenueDataPoint[]
+  monthlyGrowth: number | null
+}
+
+export interface AnalyticsBreakdownBucket {
+  key: string
+  revenue: number
+  collectedRevenue: number
+  outstanding: number
+  collectionRate: number
+  orderCount: number
+  avgOrderValue: number
+  percentage: number
+  paidOrders: number
+  partialOrders: number
+  unpaidOrders: number
+}
+
+export interface AnalyticsBreakdownSnapshot {
+  window: AnalyticsDateWindow
+  byChannel: AnalyticsBreakdownBucket[]
+  byOrderType: AnalyticsBreakdownBucket[]
+}
+
+export interface AnalyticsFulfillmentSnapshot {
+  window: AnalyticsDateWindow
+  averagePreparationTime: string
+  averageDeliveryTime: string
+  onTimeDeliveryRate: number
+  lateOrders: number
+  cancellationRate: number
+  totalOrders: number
+}
+
+export interface AnalyticsCancellationSnapshot {
+  window: AnalyticsDateWindow
+  totalCancellations: number
+  cancellationRate: number
+  estimatedRevenueLost: number
+  dailyCancellations: Array<{
+    date: string
+    cancellations: number
+    totalOrders: number
+    rate: number
+  }>
+}
+
+export interface AnalyticsPeakHoursSnapshot {
+  window: AnalyticsDateWindow
+  peakHours: Array<{ hour: number; orders: number; revenue: number }>
+  busiestDay: string
+  dailyPattern: Record<string, { orders: number; revenue: number }>
 }
 
 export interface FunnelData {

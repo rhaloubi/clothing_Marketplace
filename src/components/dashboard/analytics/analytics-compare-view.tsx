@@ -10,36 +10,10 @@ import {
   dashboardLinkPrimary,
 } from "@/components/dashboard/dashboard-page"
 import { AnalyticsRevenueCompareChart } from "@/components/dashboard/analytics/analytics-revenue-compare-chart"
+import { AnalyticsModulesPanel } from "@/components/dashboard/analytics/analytics-modules-panel"
 import { Card, CardContent } from "@/components/ui/card"
-import { ANALYTICS_COMPARE_EVENT_TYPES } from "@/lib/server/analytics-compare"
-import type { AnalyticsEventsDailyRow, AnalyticsRevenueCompareSnapshot } from "@/types"
+import type { AnalyticsRevenueCompareSnapshot } from "@/types"
 import { cn, formatPrice } from "@/lib/utils"
-import type { AnalyticsEventType } from "@/types"
-
-const EVENT_LABEL_FR: Record<AnalyticsEventType, string> = {
-  page_view: "Pages vues",
-  product_view: "Fiches produit",
-  cart_add: "Ajouts panier",
-  cart_remove: "Retraits panier",
-  checkout_start: "Débuts checkout",
-  checkout_abandon: "Abandons checkout",
-  order_placed: "Commandes passées",
-  order_delivered: "Livraisons enregistrées",
-  order_returned: "Retours enregistrés",
-}
-
-function sumEventsByType(rows: AnalyticsEventsDailyRow[]): Record<AnalyticsEventType, number> {
-  const out = {} as Record<AnalyticsEventType, number>
-  for (const t of ANALYTICS_COMPARE_EVENT_TYPES) {
-    out[t] = 0
-  }
-  for (const r of rows) {
-    for (const t of ANALYTICS_COMPARE_EVENT_TYPES) {
-      out[t] += r[t] ?? 0
-    }
-  }
-  return out
-}
 
 function DeltaBadge({
   pct,
@@ -76,18 +50,19 @@ export function AnalyticsCompareView({
   storeId,
   snapshot,
   preset,
+  from,
+  to,
 }: {
   storeId: string
   snapshot: AnalyticsRevenueCompareSnapshot
-  preset: "7d" | "30d"
+  preset: "today" | "yesterday" | "7d" | "30d" | "custom"
+  from?: string
+  to?: string
 }) {
-  const { summary, chart_rows, current_range, previous_range, events_daily_current, events_daily_previous } =
+  const { summary, chart_rows, current_range, previous_range } =
     snapshot
-  const curEv = sumEventsByType(events_daily_current)
-  const prevEv = sumEventsByType(events_daily_previous)
-
-  const presetLink = (p: "7d" | "30d") =>
-    `/dashboard/analytics?store=${encodeURIComponent(storeId)}&preset=${p}`
+  const presetLink = (p: "today" | "yesterday" | "7d" | "30d") =>
+    `/dashboard/analytics?store=${encodeURIComponent(storeId)}&preset=${p}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`
 
   return (
     <div className="space-y-8 pb-10">
@@ -97,15 +72,26 @@ export function AnalyticsCompareView({
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
-              href={presetLink("30d")}
+              href={presetLink("today")}
               className={cn(
                 "inline-flex h-11 items-center rounded-md border px-3 text-sm font-medium transition-colors",
-                preset === "30d"
+                preset === "today"
                   ? "border-stripe-purple bg-stripe-purple-muted/30 text-stripe-purple"
                   : "border-stripe-border bg-white text-stripe-body hover:bg-stripe-canvas"
               )}
             >
-              30 jours
+              Aujourd&apos;hui
+            </Link>
+            <Link
+              href={presetLink("yesterday")}
+              className={cn(
+                "inline-flex h-11 items-center rounded-md border px-3 text-sm font-medium transition-colors",
+                preset === "yesterday"
+                  ? "border-stripe-purple bg-stripe-purple-muted/30 text-stripe-purple"
+                  : "border-stripe-border bg-white text-stripe-body hover:bg-stripe-canvas"
+              )}
+            >
+              Hier
             </Link>
             <Link
               href={presetLink("7d")}
@@ -118,6 +104,44 @@ export function AnalyticsCompareView({
             >
               7 jours
             </Link>
+            <Link
+              href={presetLink("30d")}
+              className={cn(
+                "inline-flex h-11 items-center rounded-md border px-3 text-sm font-medium transition-colors",
+                preset === "30d"
+                  ? "border-stripe-purple bg-stripe-purple-muted/30 text-stripe-purple"
+                  : "border-stripe-border bg-white text-stripe-body hover:bg-stripe-canvas"
+              )}
+            >
+              30 jours
+            </Link>
+            <form action="/dashboard/analytics" method="get" className="flex items-center gap-2">
+              <input type="hidden" name="store" value={storeId} />
+              <input type="hidden" name="preset" value="custom" />
+              <input
+                type="date"
+                name="from"
+                defaultValue={from}
+                className="h-11 rounded-md border border-stripe-border bg-white px-2 text-sm"
+              />
+              <input
+                type="date"
+                name="to"
+                defaultValue={to}
+                className="h-11 rounded-md border border-stripe-border bg-white px-2 text-sm"
+              />
+              <button
+                type="submit"
+                className={cn(
+                  "inline-flex h-11 items-center rounded-md border px-3 text-sm font-medium transition-colors",
+                  preset === "custom"
+                    ? "border-stripe-purple bg-stripe-purple-muted/30 text-stripe-purple"
+                    : "border-stripe-border bg-white text-stripe-body hover:bg-stripe-canvas"
+                )}
+              >
+                Custom
+              </button>
+            </form>
           </div>
         }
       />
@@ -177,38 +201,7 @@ export function AnalyticsCompareView({
       >
         <AnalyticsRevenueCompareChart rows={chart_rows} />
       </DashboardPanelCard>
-
-      <DashboardPanelCard
-        title="Événements boutique (agrégés serveur)"
-        description="Totaux sur la période actuelle vs période précédente — pas d’agrégation côté navigateur."
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-sm">
-            <thead>
-              <tr className="border-b border-stripe-border text-left text-xs font-semibold uppercase tracking-wide text-stripe-label">
-                <th className="py-2 pe-4">Événement</th>
-                <th className="py-2 pe-4 text-end tabular-nums-stripe">Actuel</th>
-                <th className="py-2 text-end tabular-nums-stripe">Précédent</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ANALYTICS_COMPARE_EVENT_TYPES.map((t) => (
-                <tr key={t} className="border-b border-stripe-border/80 last:border-0">
-                  <td className="py-2.5 pe-4 font-medium text-stripe-heading">
-                    {EVENT_LABEL_FR[t]}
-                  </td>
-                  <td className="py-2.5 pe-4 text-end tabular-nums-stripe text-stripe-heading">
-                    {curEv[t]}
-                  </td>
-                  <td className="py-2.5 text-end tabular-nums-stripe text-stripe-body">
-                    {prevEv[t]}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </DashboardPanelCard>
+      <AnalyticsModulesPanel storeId={storeId} preset={preset} from={from} to={to} />
     </div>
   )
 }

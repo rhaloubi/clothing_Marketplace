@@ -3,6 +3,7 @@ import { withUserAuth, withPlan, withRateLimit, ok, fail, ValidationError } from
 import { createClient } from "@/lib/supabase/server"
 import { assertStoreOwnership } from "@/lib/utils"
 import { fetchAnalyticsRevenueCompareSnapshot } from "@/lib/server/analytics-compare"
+import { withAnalyticsCache } from "@/lib/server/analytics-cache"
 import { analyticsCompareQuerySchema } from "@/lib/validations"
 
 export const GET = withUserAuth(
@@ -22,15 +23,14 @@ export const GET = withUserAuth(
         )
       }
 
-      const { store_id, preset } = parsed.data
+      const { store_id, preset, from, to } = parsed.data
       const supabase = await createClient()
       await assertStoreOwnership(supabase, store_id, auth.user.id)
 
       try {
-        const snapshot = await fetchAnalyticsRevenueCompareSnapshot(
-          supabase,
-          store_id,
-          preset
+        const cacheKey = `revenue-compare:${store_id}:${preset}:${from ?? ""}:${to ?? ""}`
+        const snapshot = await withAnalyticsCache(cacheKey, async () =>
+          fetchAnalyticsRevenueCompareSnapshot(supabase, store_id, preset, { from, to })
         )
         return ok(snapshot)
       } catch (e) {
