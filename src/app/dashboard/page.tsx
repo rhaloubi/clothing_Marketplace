@@ -53,9 +53,9 @@ export default async function DashboardPage({
 
   if (loadError || !snapshot) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 sm:space-y-8">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-stripe-heading">
+          <h1 className="text-2xl font-semibold tracking-tight text-stripe-heading sm:text-3xl">
             {store.name}
           </h1>
           <p className="text-sm text-stripe-body">Vue d&apos;ensemble</p>

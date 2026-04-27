@@ -429,12 +429,18 @@ export function StoreSettingsForm({ initial }: { initial: StoreSettingsInitialDa
         />
       </SettingsSection>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-stripe-border bg-white/95 px-4 py-3 shadow-[0_-4px_12px_rgba(6,27,49,0.06)] backdrop-blur-sm sm:sticky sm:bottom-0 sm:bg-white/90">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-end gap-3">
+      <div className="sticky bottom-0 z-30 rounded-md border border-stripe-border bg-white/95 p-3 shadow-[0_-4px_12px_rgba(6,27,49,0.06)] backdrop-blur-sm sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-medium text-stripe-body sm:text-sm">
+            {dirtyForm
+              ? "Des modifications ne sont pas encore enregistrées."
+              : "Aucune modification à enregistrer."}
+          </p>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
           <Button
             type="button"
             variant="ghost"
-            className="min-h-11 text-stripe-body hover:text-stripe-heading"
+            className="min-h-11 w-full text-stripe-body hover:text-stripe-heading sm:w-auto"
             disabled={!dirtyForm || isSubmitting}
             onClick={resetAll}
           >
@@ -443,7 +449,10 @@ export function StoreSettingsForm({ initial }: { initial: StoreSettingsInitialDa
           <Button
             type="submit"
             disabled={!dirtyForm || isSubmitting}
-            className={cn(dashboardLinkPrimary, "min-h-11 border-0 shadow-sm")}
+            className={cn(
+              dashboardLinkPrimary,
+              "min-h-11 w-full justify-center border-0 shadow-sm sm:w-auto"
+            )}
           >
             {isSubmitting ? (
               <>
@@ -454,6 +463,7 @@ export function StoreSettingsForm({ initial }: { initial: StoreSettingsInitialDa
               "Enregistrer les paramètres"
             )}
           </Button>
+          </div>
         </div>
       </div>
     </form>

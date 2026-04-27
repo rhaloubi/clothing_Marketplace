@@ -1,15 +1,16 @@
 import { withUserAuth, withPlan, withRateLimit, ok, fail } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
 import { assertStoreOwnership } from "@/lib/utils"
-import { parseAnalyticsRangeQuery, orderCountsAsRevenue } from "@/lib/server/analytics-query"
+import { parseAnalyticsWindowQuery } from "@/lib/server/analytics-query"
+import { runAnalyticsRpc } from "@/lib/server/analytics-rpc"
 import type { NextRequest } from "next/server"
 
 export const GET = withUserAuth(
   withPlan("has_analytics")(
     withRateLimit("api", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
-      let range: ReturnType<typeof parseAnalyticsRangeQuery>
+      let range: ReturnType<typeof parseAnalyticsWindowQuery>
       try {
-        range = parseAnalyticsRangeQuery(req)
+        range = parseAnalyticsWindowQuery(req)
       } catch (e) {
         return fail(e)
       }
@@ -17,40 +18,38 @@ export const GET = withUserAuth(
       const supabase = await createClient()
       await assertStoreOwnership(supabase, range.store_id, auth.user.id)
 
-      const { data: orders, error: oErr } = await supabase
-        .from("orders")
-        .select("wilaya_id, total_mad, status")
-        .eq("store_id", range.store_id)
-        .gte("created_at", range.from)
-        .lte("created_at", range.to)
-
-      if (oErr) return fail(oErr)
-
+      const orderAgg = await runAnalyticsRpc<{ wilaya_id: number; orders: number; revenue_mad: number }>(
+        supabase,
+        "analytics_wilayas_order_agg",
+        {
+        p_store_id: range.store_id,
+        p_from: range.window.from_inclusive_iso,
+        p_to: range.window.to_exclusive_iso,
+        }
+      )
       const fromOrders = new Map<number, { orders: number; revenue_mad: number }>()
-      for (const o of orders ?? []) {
-        if (!orderCountsAsRevenue(o.status)) continue
-        const cur = fromOrders.get(o.wilaya_id) ?? { orders: 0, revenue_mad: 0 }
-        cur.orders += 1
-        cur.revenue_mad += o.total_mad
-        fromOrders.set(o.wilaya_id, cur)
+      for (const o of orderAgg) {
+        fromOrders.set(Number(o.wilaya_id), {
+          orders: Number(o.orders),
+          revenue_mad: Number(o.revenue_mad),
+        })
       }
 
-      const { data: events, error: eErr } = await supabase
-        .from("analytics_events")
-        .select("wilaya_id, event_type")
-        .eq("store_id", range.store_id)
-        .gte("created_at", range.from)
-        .lte("created_at", range.to)
-        .not("wilaya_id", "is", null)
-
-      if (eErr) return fail(eErr)
-
+      const eventAgg = await runAnalyticsRpc<{ wilaya_id: number; event_type: string; events: number }>(
+        supabase,
+        "analytics_wilayas_event_agg",
+        {
+        p_store_id: range.store_id,
+        p_from: range.window.from_inclusive_iso,
+        p_to: range.window.to_exclusive_iso,
+        }
+      )
       const eventByWilaya = new Map<number, Record<string, number>>()
-      for (const ev of events ?? []) {
-        if (ev.wilaya_id == null) continue
-        const m = eventByWilaya.get(ev.wilaya_id) ?? {}
-        m[ev.event_type] = (m[ev.event_type] ?? 0) + 1
-        eventByWilaya.set(ev.wilaya_id, m)
+      for (const ev of eventAgg) {
+        const w = Number(ev.wilaya_id)
+        const m = eventByWilaya.get(w) ?? {}
+        m[String(ev.event_type)] = Number(ev.events)
+        eventByWilaya.set(w, m)
       }
 
       const wilayaIds = new Set<number>([
@@ -59,7 +58,7 @@ export const GET = withUserAuth(
       ])
 
       if (wilayaIds.size === 0) {
-        return ok({ range: { from: range.from, to: range.to }, breakdown: [] })
+        return ok({ window: range.window, breakdown: [] })
       }
 
       const { data: wilayaRows } = await supabase
@@ -77,7 +76,7 @@ export const GET = withUserAuth(
         events: eventByWilaya.get(id) ?? {},
       }))
 
-      return ok({ range: { from: range.from, to: range.to }, breakdown })
+      return ok({ window: range.window, breakdown })
     })
   )
 )

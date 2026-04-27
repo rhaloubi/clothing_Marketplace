@@ -70,11 +70,12 @@ export function AnalyticsCompareView({
         title="Statistiques"
         description="Comparez la période actuelle à la période précédente (fuseau Casablanca)."
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="overflow-x-auto pb-1">
+            <div className="flex min-w-max flex-nowrap gap-2 pe-1">
             <Link
               href={presetLink("today")}
               className={cn(
-                "inline-flex h-11 items-center rounded-md border px-3 text-sm font-medium transition-colors",
+                "inline-flex h-11 shrink-0 items-center rounded-md border px-3 text-sm font-medium transition-colors",
                 preset === "today"
                   ? "border-stripe-purple bg-stripe-purple-muted/30 text-stripe-purple"
                   : "border-stripe-border bg-white text-stripe-body hover:bg-stripe-canvas"
@@ -85,7 +86,7 @@ export function AnalyticsCompareView({
             <Link
               href={presetLink("yesterday")}
               className={cn(
-                "inline-flex h-11 items-center rounded-md border px-3 text-sm font-medium transition-colors",
+                "inline-flex h-11 shrink-0 items-center rounded-md border px-3 text-sm font-medium transition-colors",
                 preset === "yesterday"
                   ? "border-stripe-purple bg-stripe-purple-muted/30 text-stripe-purple"
                   : "border-stripe-border bg-white text-stripe-body hover:bg-stripe-canvas"
@@ -96,7 +97,7 @@ export function AnalyticsCompareView({
             <Link
               href={presetLink("7d")}
               className={cn(
-                "inline-flex h-11 items-center rounded-md border px-3 text-sm font-medium transition-colors",
+                "inline-flex h-11 shrink-0 items-center rounded-md border px-3 text-sm font-medium transition-colors",
                 preset === "7d"
                   ? "border-stripe-purple bg-stripe-purple-muted/30 text-stripe-purple"
                   : "border-stripe-border bg-white text-stripe-body hover:bg-stripe-canvas"
@@ -107,7 +108,7 @@ export function AnalyticsCompareView({
             <Link
               href={presetLink("30d")}
               className={cn(
-                "inline-flex h-11 items-center rounded-md border px-3 text-sm font-medium transition-colors",
+                "inline-flex h-11 shrink-0 items-center rounded-md border px-3 text-sm font-medium transition-colors",
                 preset === "30d"
                   ? "border-stripe-purple bg-stripe-purple-muted/30 text-stripe-purple"
                   : "border-stripe-border bg-white text-stripe-body hover:bg-stripe-canvas"
@@ -115,25 +116,29 @@ export function AnalyticsCompareView({
             >
               30 jours
             </Link>
-            <form action="/dashboard/analytics" method="get" className="flex items-center gap-2">
+            <form
+              action="/dashboard/analytics"
+              method="get"
+              className="flex shrink-0 items-center gap-2"
+            >
               <input type="hidden" name="store" value={storeId} />
               <input type="hidden" name="preset" value="custom" />
               <input
                 type="date"
                 name="from"
                 defaultValue={from}
-                className="h-11 rounded-md border border-stripe-border bg-white px-2 text-sm"
+                className="h-11 min-w-[140px] rounded-md border border-stripe-border bg-white px-2 text-sm"
               />
               <input
                 type="date"
                 name="to"
                 defaultValue={to}
-                className="h-11 rounded-md border border-stripe-border bg-white px-2 text-sm"
+                className="h-11 min-w-[140px] rounded-md border border-stripe-border bg-white px-2 text-sm"
               />
               <button
                 type="submit"
                 className={cn(
-                  "inline-flex h-11 items-center rounded-md border px-3 text-sm font-medium transition-colors",
+                  "inline-flex h-11 shrink-0 items-center rounded-md border px-3 text-sm font-medium transition-colors",
                   preset === "custom"
                     ? "border-stripe-purple bg-stripe-purple-muted/30 text-stripe-purple"
                     : "border-stripe-border bg-white text-stripe-body hover:bg-stripe-canvas"
@@ -142,6 +147,7 @@ export function AnalyticsCompareView({
                 Custom
               </button>
             </form>
+            </div>
           </div>
         }
       />

@@ -114,9 +114,9 @@ export default async function ProfilePage({
   }
 
   return (
-    <div className="space-y-8 pb-8">
+    <div className="space-y-6 pb-8 sm:space-y-8">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-stripe-heading">
+        <h1 className="text-2xl font-semibold tracking-tight text-stripe-heading sm:text-3xl">
           Profil et abonnement
         </h1>
         <p className="text-sm text-stripe-body">
@@ -124,7 +124,7 @@ export default async function ProfilePage({
         </p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_minmax(280px,340px)] lg:items-start">
+      <div className="grid gap-6 lg:gap-8 xl:grid-cols-[1fr_minmax(280px,340px)] xl:items-start">
         <div className="space-y-6">
           <ProfilePersonalForm email={data.email} profile={data.profile} />
           <ProfileSecurityCard />

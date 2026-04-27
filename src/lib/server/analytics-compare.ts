@@ -7,11 +7,11 @@ import type {
   AnalyticsEventType,
   RevenueDataPoint,
 } from "@/types"
-import { orderCountsAsRevenue, resolveAnalyticsDateWindow } from "@/lib/server/analytics-query"
+import { resolveAnalyticsDateWindow } from "@/lib/server/analytics-query"
+import { runAnalyticsRpc } from "@/lib/server/analytics-rpc"
 import {
   MOROCCO_TIMEZONE,
   enumerateCasablancaDateKeysInclusive,
-  getCasablancaDateKey,
   offsetCasablancaDateKey,
   previousCasablancaDateKey,
   startOfCasablancaDayUtc,
@@ -108,32 +108,17 @@ async function fetchOrdersForRange(
   storeId: string,
   fromInclusiveIso: string,
   toExclusiveIso: string
-): Promise<{ created_at: string; total_mad: number; status: string }[]> {
-  const { data, error } = await supabase
-    .from("orders")
-    .select("created_at, total_mad, status")
-    .eq("store_id", storeId)
-    .gte("created_at", fromInclusiveIso)
-    .lt("created_at", toExclusiveIso)
-    .order("created_at", { ascending: true })
-
-  if (error) throw error
-  return (data ?? []) as { created_at: string; total_mad: number; status: string }[]
-}
-
-function buildRevenueByDay(
-  rows: { created_at: string; total_mad: number; status: string }[]
-): Map<string, { revenue: number; orders: number }> {
-  const map = new Map<string, { revenue: number; orders: number }>()
-  for (const o of rows) {
-    if (!orderCountsAsRevenue(o.status)) continue
-    const day = getCasablancaDateKey(new Date(o.created_at))
-    const cur = map.get(day) ?? { revenue: 0, orders: 0 }
-    cur.revenue += o.total_mad
-    cur.orders += 1
-    map.set(day, cur)
-  }
-  return map
+): Promise<Array<{ date_key: string; revenue_mad: number; revenue_orders: number }>> {
+  return runAnalyticsRpc<{ date_key: string; revenue_mad: number; revenue_orders: number }>(
+    supabase,
+    "analytics_overview_daily_agg",
+    {
+    p_store_id: storeId,
+    p_from: fromInclusiveIso,
+    p_to: toExclusiveIso,
+    p_tz: "Africa/Casablanca",
+    }
+  )
 }
 
 function revenueSeriesForKeys(
@@ -201,8 +186,12 @@ export async function fetchAnalyticsRevenueCompareSnapshot(
     ),
   ])
 
-  const curByDay = buildRevenueByDay(curOrders)
-  const prevByDay = buildRevenueByDay(prevOrders)
+  const curByDay = new Map<string, { revenue: number; orders: number }>(
+    curOrders.map((r) => [r.date_key, { revenue: Number(r.revenue_mad), orders: Number(r.revenue_orders) }])
+  )
+  const prevByDay = new Map<string, { revenue: number; orders: number }>(
+    prevOrders.map((r) => [r.date_key, { revenue: Number(r.revenue_mad), orders: Number(r.revenue_orders) }])
+  )
   const series_current = revenueSeriesForKeys(currentKeys, curByDay)
   const series_previous = revenueSeriesForKeys(previousKeys, prevByDay)
 

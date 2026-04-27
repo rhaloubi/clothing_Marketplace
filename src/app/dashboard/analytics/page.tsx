@@ -50,7 +50,7 @@ export default async function AnalyticsPage({
 
   if (!hasAnalytics) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center py-10">
+      <div className="flex min-h-[50vh] flex-col items-center justify-center px-2 py-8 sm:px-0 sm:py-10">
         <AnalyticsUpgradeRequired storeId={storeId} />
       </div>
     )

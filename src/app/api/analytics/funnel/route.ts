@@ -1,16 +1,17 @@
 import { withUserAuth, withPlan, withRateLimit, ok, fail } from "@/lib/api"
 import { createClient } from "@/lib/supabase/server"
 import { assertStoreOwnership } from "@/lib/utils"
-import { parseAnalyticsRangeQuery } from "@/lib/server/analytics-query"
+import { parseAnalyticsWindowQuery } from "@/lib/server/analytics-query"
+import { runAnalyticsRpc } from "@/lib/server/analytics-rpc"
 import type { NextRequest } from "next/server"
 import type { FunnelData } from "@/types"
 
 export const GET = withUserAuth(
   withPlan("has_analytics")(
     withRateLimit("api", { keyBy: "user" })(async (req: NextRequest, { auth }) => {
-      let range: ReturnType<typeof parseAnalyticsRangeQuery>
+      let range: ReturnType<typeof parseAnalyticsWindowQuery>
       try {
-        range = parseAnalyticsRangeQuery(req)
+        range = parseAnalyticsWindowQuery(req)
       } catch (e) {
         return fail(e)
       }
@@ -18,38 +19,26 @@ export const GET = withUserAuth(
       const supabase = await createClient()
       await assertStoreOwnership(supabase, range.store_id, auth.user.id)
 
-      const { data: events, error } = await supabase
-        .from("analytics_events")
-        .select("event_type")
-        .eq("store_id", range.store_id)
-        .gte("created_at", range.from)
-        .lte("created_at", range.to)
-
-      if (error) return fail(error)
-
-      let product_views = 0
-      let cart_adds = 0
-      let checkout_starts = 0
-      let orders_placed = 0
-
-      for (const e of events ?? []) {
-        switch (e.event_type) {
-          case "product_view":
-            product_views += 1
-            break
-          case "cart_add":
-            cart_adds += 1
-            break
-          case "checkout_start":
-            checkout_starts += 1
-            break
-          case "order_placed":
-            orders_placed += 1
-            break
-          default:
-            break
-        }
-      }
+      const rows = await runAnalyticsRpc<{
+        product_views: number
+        cart_adds: number
+        checkout_starts: number
+        orders_placed: number
+      }>(supabase, "analytics_funnel_agg", {
+        p_store_id: range.store_id,
+        p_from: range.window.from_inclusive_iso,
+        p_to: range.window.to_exclusive_iso,
+      })
+      const row = (rows[0] ?? {
+        product_views: 0,
+        cart_adds: 0,
+        checkout_starts: 0,
+        orders_placed: 0,
+      })
+      const product_views = Number(row.product_views)
+      const cart_adds = Number(row.cart_adds)
+      const checkout_starts = Number(row.checkout_starts)
+      const orders_placed = Number(row.orders_placed)
 
       const funnel: FunnelData = {
         product_views,
@@ -64,7 +53,7 @@ export const GET = withUserAuth(
             : 0,
       }
 
-      return ok({ range: { from: range.from, to: range.to }, funnel })
+      return ok({ window: range.window, funnel })
     })
   )
 )

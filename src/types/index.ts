@@ -431,6 +431,100 @@ export interface AnalyticsPeakHoursSnapshot {
   dailyPattern: Record<string, { orders: number; revenue: number }>
 }
 
+export interface AnalyticsMenuProductItem {
+  productId: string
+  name: string
+  quantitySold: number
+  revenue: number
+  orderCount: number
+}
+
+export interface AnalyticsMenuSnapshot {
+  window: AnalyticsDateWindow
+  popular: {
+    topItems: AnalyticsMenuProductItem[]
+  }
+  underperforming: {
+    startDate: string
+    endDate: string
+    underperformingItems: Array<AnalyticsMenuProductItem & { revenueShare: number }>
+    totalUniqueItems: number
+  }
+  revenue: {
+    startDate: string
+    endDate: string
+    items: Array<AnalyticsMenuProductItem & { revenueShare: number; avgRevenuePerOrder: number }>
+    totalRevenue: number
+    totalUniqueItems: number
+  }
+  affinity: {
+    startDate: string
+    endDate: string
+    frequentPairs: Array<{
+      productIdA: string
+      nameA: string
+      productIdB: string
+      nameB: string
+      coOccurrenceCount: number
+      supportPercent: number
+    }>
+    totalOrdersAnalyzed: number
+  }
+  byTime: {
+    startDate: string
+    endDate: string
+    timeSlots: Array<{
+      slot: "MORNING" | "LUNCH" | "AFTERNOON" | "EVENING" | "NIGHT"
+      startHour: number
+      endHour: number
+      totalItemsSold: number
+      totalRevenue: number
+    }>
+    topItemsBySlot: Record<string, Array<{
+      productId: string
+      name: string
+      quantitySold: number
+      revenue: number
+    }>>
+  }
+  trends: {
+    currentStart: string
+    currentEnd: string
+    previousStart: string
+    previousEnd: string
+    trends: Array<{
+      productId: string
+      name: string
+      currentQuantity: number
+      currentRevenue: number
+      previousQuantity: number
+      previousRevenue: number
+      quantityChangePercent: number | null
+      revenueChangePercent: number | null
+    }>
+    risers: Array<{
+      productId: string
+      name: string
+      currentQuantity: number
+      currentRevenue: number
+      previousQuantity: number
+      previousRevenue: number
+      quantityChangePercent: number | null
+      revenueChangePercent: number | null
+    }>
+    fallers: Array<{
+      productId: string
+      name: string
+      currentQuantity: number
+      currentRevenue: number
+      previousQuantity: number
+      previousRevenue: number
+      quantityChangePercent: number | null
+      revenueChangePercent: number | null
+    }>
+  }
+}
+
 export interface FunnelData {
   product_views: number
   cart_adds: number

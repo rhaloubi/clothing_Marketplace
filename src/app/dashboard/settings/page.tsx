@@ -75,9 +75,9 @@ export default async function SettingsPage({
   }
 
   return (
-    <div className="space-y-10 pb-24">
+    <div className="space-y-8 pb-20 sm:space-y-10">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-stripe-heading">
+        <h1 className="text-2xl font-semibold tracking-tight text-stripe-heading sm:text-3xl">
           Paramètres de la boutique
         </h1>
         <p className="text-sm text-stripe-body">

@@ -4,45 +4,50 @@ import type {
   AnalyticsCancellationSnapshot,
   AnalyticsDateWindow,
   AnalyticsFulfillmentSnapshot,
-  AnalyticsOverviewDailyRow,
   AnalyticsOverviewSnapshot,
   AnalyticsPeakHoursSnapshot,
   AnalyticsRevenueSnapshot,
   RevenueDataPoint,
 } from "@/types"
 import type { Database } from "@/types/database.types"
-import { orderCountsAsRevenue } from "@/lib/server/analytics-query"
-import { enumerateCasablancaDateKeysInclusive, getCasablancaDateKey } from "@/lib/utils/morocco-time"
+import { runAnalyticsRpc } from "@/lib/server/analytics-rpc"
 
 type SB = SupabaseClient<Database>
-
-type OrderRow = {
-  created_at: string
-  status: string
-  total_mad: number
-  confirmed_at: string | null
-  delivered_at: string | null
-}
-
-async function fetchOrders(
-  supabase: SB,
-  storeId: string,
-  window: AnalyticsDateWindow
-): Promise<OrderRow[]> {
-  const { data, error } = await supabase
-    .from("orders")
-    .select("created_at, status, total_mad, confirmed_at, delivered_at")
-    .eq("store_id", storeId)
-    .gte("created_at", window.from_inclusive_iso)
-    .lt("created_at", window.to_exclusive_iso)
-
-  if (error) throw error
-  return (data ?? []) as OrderRow[]
-}
 
 function pct(part: number, total: number): number {
   if (total <= 0) return 0
   return Math.round((part / total) * 10000) / 100
+}
+
+function secondsToHms(seconds: number): string {
+  const s = Number.isFinite(seconds) ? Math.max(0, Math.round(seconds)) : 0
+  const hh = String(Math.floor(s / 3600)).padStart(2, "0")
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0")
+  const ss = String(s % 60).padStart(2, "0")
+  return `${hh}:${mm}:${ss}`
+}
+
+type OverviewDailyRowRpc = {
+  date_key: string
+  total_orders: number
+  completed_orders: number
+  cancelled_orders: number
+  in_progress_orders: number
+  revenue_mad: number
+  revenue_orders: number
+}
+
+async function fetchOverviewDailyRpc(
+  supabase: SB,
+  storeId: string,
+  window: AnalyticsDateWindow
+): Promise<OverviewDailyRowRpc[]> {
+  return runAnalyticsRpc<OverviewDailyRowRpc>(supabase, "analytics_overview_daily_agg", {
+    p_store_id: storeId,
+    p_from: window.from_inclusive_iso,
+    p_to: window.to_exclusive_iso,
+    p_tz: "Africa/Casablanca",
+  })
 }
 
 export async function fetchAnalyticsOverviewSnapshot(
@@ -50,43 +55,16 @@ export async function fetchAnalyticsOverviewSnapshot(
   storeId: string,
   window: AnalyticsDateWindow
 ): Promise<AnalyticsOverviewSnapshot> {
-  const orders = await fetchOrders(supabase, storeId, window)
-  const keys = enumerateCasablancaDateKeysInclusive(
-    window.start_date_key,
-    window.end_date_key_inclusive
-  )
-
-  const dailyMap = new Map<string, AnalyticsOverviewDailyRow>()
-  for (const k of keys) {
-    dailyMap.set(k, {
-      date: k,
-      totalOrders: 0,
-      completedOrders: 0,
-      cancelledOrders: 0,
-      inProgressOrders: 0,
-      completionRate: 0,
-      cancellationRate: 0,
-    })
-  }
-
-  for (const o of orders) {
-    const day = getCasablancaDateKey(new Date(o.created_at))
-    const row = dailyMap.get(day)
-    if (!row) continue
-    row.totalOrders += 1
-    if (o.status === "delivered") row.completedOrders += 1
-    else if (o.status === "cancelled") row.cancelledOrders += 1
-    else row.inProgressOrders += 1
-  }
-
-  const dailyStats = keys.map((k) => {
-    const r = dailyMap.get(k)!
-    return {
-      ...r,
-      completionRate: pct(r.completedOrders, r.totalOrders),
-      cancellationRate: pct(r.cancelledOrders, r.totalOrders),
-    }
-  })
+  const daily = await fetchOverviewDailyRpc(supabase, storeId, window)
+  const dailyStats = daily.map((r) => ({
+    date: r.date_key,
+    totalOrders: Number(r.total_orders),
+    completedOrders: Number(r.completed_orders),
+    cancelledOrders: Number(r.cancelled_orders),
+    inProgressOrders: Number(r.in_progress_orders),
+    completionRate: pct(Number(r.completed_orders), Number(r.total_orders)),
+    cancellationRate: pct(Number(r.cancelled_orders), Number(r.total_orders)),
+  }))
 
   const summary = dailyStats.reduce(
     (acc, r) => {
@@ -116,27 +94,12 @@ export async function fetchAnalyticsRevenueSnapshot(
   storeId: string,
   window: AnalyticsDateWindow
 ): Promise<AnalyticsRevenueSnapshot> {
-  const orders = await fetchOrders(supabase, storeId, window)
-  const keys = enumerateCasablancaDateKeysInclusive(
-    window.start_date_key,
-    window.end_date_key_inclusive
-  )
-  const byDay = new Map<string, { revenue: number; orders: number }>()
-  for (const k of keys) byDay.set(k, { revenue: 0, orders: 0 })
-
-  for (const o of orders) {
-    if (!orderCountsAsRevenue(o.status)) continue
-    const day = getCasablancaDateKey(new Date(o.created_at))
-    const cur = byDay.get(day)
-    if (!cur) continue
-    cur.revenue += o.total_mad
-    cur.orders += 1
-  }
-
-  const dailySales: RevenueDataPoint[] = keys.map((date) => {
-    const v = byDay.get(date) ?? { revenue: 0, orders: 0 }
-    return { date, revenue: v.revenue, orders: v.orders }
-  })
+  const daily = await fetchOverviewDailyRpc(supabase, storeId, window)
+  const dailySales: RevenueDataPoint[] = daily.map((r) => ({
+    date: r.date_key,
+    revenue: Number(r.revenue_mad),
+    orders: Number(r.revenue_orders),
+  }))
 
   return { window, dailySales, monthlyGrowth: null }
 }
@@ -146,16 +109,17 @@ export async function fetchAnalyticsBreakdownSnapshot(
   storeId: string,
   window: AnalyticsDateWindow
 ): Promise<AnalyticsBreakdownSnapshot> {
-  const orders = await fetchOrders(supabase, storeId, window)
+  const daily = await fetchOverviewDailyRpc(supabase, storeId, window)
   let revenue = 0
   let paidOrders = 0
   let unpaidOrders = 0
-  for (const o of orders) {
-    revenue += o.total_mad
-    if (orderCountsAsRevenue(o.status)) paidOrders += 1
-    else unpaidOrders += 1
+  let orderCount = 0
+  for (const d of daily) {
+    revenue += Number(d.revenue_mad)
+    paidOrders += Number(d.revenue_orders)
+    orderCount += Number(d.total_orders)
+    unpaidOrders += Number(d.total_orders) - Number(d.revenue_orders)
   }
-  const orderCount = orders.length
   const bucket = {
     key: "Boutique",
     revenue,
@@ -172,47 +136,37 @@ export async function fetchAnalyticsBreakdownSnapshot(
   return { window, byChannel: [bucket], byOrderType: [bucket] }
 }
 
-function msToHms(ms: number): string {
-  if (ms <= 0) return "00:00:00"
-  const totalSec = Math.floor(ms / 1000)
-  const hh = String(Math.floor(totalSec / 3600)).padStart(2, "0")
-  const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0")
-  const ss = String(totalSec % 60).padStart(2, "0")
-  return `${hh}:${mm}:${ss}`
-}
-
 export async function fetchAnalyticsFulfillmentSnapshot(
   supabase: SB,
   storeId: string,
   window: AnalyticsDateWindow
 ): Promise<AnalyticsFulfillmentSnapshot> {
-  const orders = await fetchOrders(supabase, storeId, window)
-  let prepMs = 0
-  let prepCount = 0
-  let deliveryMs = 0
-  let deliveryCount = 0
-  let cancelled = 0
-  for (const o of orders) {
-    if (o.status === "cancelled") cancelled += 1
-    if (o.confirmed_at) {
-      prepMs += new Date(o.confirmed_at).getTime() - new Date(o.created_at).getTime()
-      prepCount += 1
-    }
-    if (o.delivered_at) {
-      deliveryMs += new Date(o.delivered_at).getTime() - new Date(o.created_at).getTime()
-      deliveryCount += 1
-    }
-  }
-  const averagePreparationTime = msToHms(prepCount > 0 ? prepMs / prepCount : 0)
-  const averageDeliveryTime = msToHms(deliveryCount > 0 ? deliveryMs / deliveryCount : 0)
+  const rows = await runAnalyticsRpc<{
+    total_orders: number
+    cancelled_orders: number
+    prep_seconds_avg: number
+    delivery_seconds_avg: number
+  }>(supabase, "analytics_fulfillment_agg", {
+    p_store_id: storeId,
+    p_from: window.from_inclusive_iso,
+    p_to: window.to_exclusive_iso,
+  })
+  const row = (rows[0] ?? {
+    total_orders: 0,
+    cancelled_orders: 0,
+    prep_seconds_avg: 0,
+    delivery_seconds_avg: 0,
+  })
+  const totalOrders = Number(row.total_orders)
+  const cancelled = Number(row.cancelled_orders)
   return {
     window,
-    averagePreparationTime,
-    averageDeliveryTime,
-    onTimeDeliveryRate: deliveryCount > 0 ? 100 : 0,
+    averagePreparationTime: secondsToHms(Number(row.prep_seconds_avg)),
+    averageDeliveryTime: secondsToHms(Number(row.delivery_seconds_avg)),
+    onTimeDeliveryRate: totalOrders > 0 ? 100 - pct(cancelled, totalOrders) : 0,
     lateOrders: 0,
-    cancellationRate: pct(cancelled, orders.length),
-    totalOrders: orders.length,
+    cancellationRate: pct(cancelled, totalOrders),
+    totalOrders,
   }
 }
 
@@ -221,40 +175,35 @@ export async function fetchAnalyticsCancellationSnapshot(
   storeId: string,
   window: AnalyticsDateWindow
 ): Promise<AnalyticsCancellationSnapshot> {
-  const orders = await fetchOrders(supabase, storeId, window)
-  const keys = enumerateCasablancaDateKeysInclusive(
-    window.start_date_key,
-    window.end_date_key_inclusive
-  )
-  const day = new Map<string, { cancellations: number; total: number }>()
-  for (const k of keys) day.set(k, { cancellations: 0, total: 0 })
-
+  const daily = await fetchOverviewDailyRpc(supabase, storeId, window)
+  let totalOrders = 0
+  let totalCancellations = 0
   let estimatedRevenueLost = 0
-  for (const o of orders) {
-    const key = getCasablancaDateKey(new Date(o.created_at))
-    const cur = day.get(key)
-    if (!cur) continue
-    cur.total += 1
-    if (o.status === "cancelled") {
-      cur.cancellations += 1
-      estimatedRevenueLost += o.total_mad
-    }
+  for (const d of daily) {
+    totalOrders += Number(d.total_orders)
+    totalCancellations += Number(d.cancelled_orders)
   }
-  const totalCancellations = orders.filter((o) => o.status === "cancelled").length
+  const { data: cancelledOrders, error } = await supabase
+    .from("orders")
+    .select("total_mad")
+    .eq("store_id", storeId)
+    .eq("status", "cancelled")
+    .gte("created_at", window.from_inclusive_iso)
+    .lt("created_at", window.to_exclusive_iso)
+  if (error) throw error
+  for (const o of cancelledOrders ?? []) estimatedRevenueLost += Number(o.total_mad)
+
   return {
     window,
     totalCancellations,
-    cancellationRate: pct(totalCancellations, orders.length),
+    cancellationRate: pct(totalCancellations, totalOrders),
     estimatedRevenueLost,
-    dailyCancellations: keys.map((k) => {
-      const v = day.get(k) ?? { cancellations: 0, total: 0 }
-      return {
-        date: k,
-        cancellations: v.cancellations,
-        totalOrders: v.total,
-        rate: pct(v.cancellations, v.total),
-      }
-    }),
+    dailyCancellations: daily.map((d) => ({
+      date: d.date_key,
+      cancellations: Number(d.cancelled_orders),
+      totalOrders: Number(d.total_orders),
+      rate: pct(Number(d.cancelled_orders), Number(d.total_orders)),
+    })),
   }
 }
 
@@ -263,38 +212,36 @@ export async function fetchAnalyticsPeakHoursSnapshot(
   storeId: string,
   window: AnalyticsDateWindow
 ): Promise<AnalyticsPeakHoursSnapshot> {
-  const orders = await fetchOrders(supabase, storeId, window)
-  const byHour = new Map<number, { orders: number; revenue: number }>()
-  const byDay = new Map<string, { orders: number; revenue: number }>()
-  for (const o of orders) {
-    if (!orderCountsAsRevenue(o.status)) continue
-    const d = new Date(o.created_at)
-    const hour = Number(
-      new Intl.DateTimeFormat("en-GB", {
-        timeZone: "Africa/Casablanca",
-        hour: "2-digit",
-        hour12: false,
-      }).format(d)
-    )
-    const day = getCasablancaDateKey(d)
-    const h = byHour.get(hour) ?? { orders: 0, revenue: 0 }
-    h.orders += 1
-    h.revenue += o.total_mad
-    byHour.set(hour, h)
-    const dy = byDay.get(day) ?? { orders: 0, revenue: 0 }
-    dy.orders += 1
-    dy.revenue += o.total_mad
-    byDay.set(day, dy)
-  }
-  const peakHours = [...byHour.entries()]
-    .map(([hour, v]) => ({ hour, orders: v.orders, revenue: v.revenue }))
-    .sort((a, b) => b.orders - a.orders)
-    .slice(0, 6)
-  const busiest = [...byDay.entries()].sort((a, b) => b[1].orders - a[1].orders)[0]
+  const rows = await runAnalyticsRpc<{ hour_of_day: number; orders: number; revenue_mad: number }>(
+    supabase,
+    "analytics_peak_hours_agg",
+    {
+      p_store_id: storeId,
+      p_from: window.from_inclusive_iso,
+      p_to: window.to_exclusive_iso,
+      p_tz: "Africa/Casablanca",
+    }
+  )
+  const peakHours = rows.slice(0, 6).map((r) => ({
+    hour: Number(r.hour_of_day),
+    orders: Number(r.orders),
+    revenue: Number(r.revenue_mad),
+  }))
+  const daily = await fetchOverviewDailyRpc(supabase, storeId, window)
+  const dailyPattern = Object.fromEntries(
+    daily.map((d) => [
+      d.date_key,
+      {
+        orders: Number(d.revenue_orders),
+        revenue: Number(d.revenue_mad),
+      },
+    ])
+  )
+  const busiest = Object.entries(dailyPattern).sort((a, b) => b[1].orders - a[1].orders)[0]
   return {
     window,
     peakHours,
     busiestDay: busiest?.[0] ?? "",
-    dailyPattern: Object.fromEntries(byDay),
+    dailyPattern,
   }
 }

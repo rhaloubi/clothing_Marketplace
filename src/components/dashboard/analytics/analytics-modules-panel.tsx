@@ -8,12 +8,13 @@ import type {
   AnalyticsCancellationSnapshot,
   AnalyticsComparePreset,
   AnalyticsFulfillmentSnapshot,
+  AnalyticsMenuSnapshot,
   AnalyticsOverviewSnapshot,
   AnalyticsPeakHoursSnapshot,
 } from "@/types"
 import { cn, formatPrice } from "@/lib/utils"
 
-type TabId = "overview" | "breakdown" | "fulfillment" | "cancellations" | "peak-hours"
+type TabId = "overview" | "breakdown" | "fulfillment" | "cancellations" | "peak-hours" | "menu"
 
 function buildAnalyticsPath(
   base: string,
@@ -82,6 +83,14 @@ export function AnalyticsModulesPanel({
       ),
     enabled: tab === "peak-hours",
   })
+  const menu = useQuery({
+    queryKey: ["analytics", "menu", params],
+    queryFn: () =>
+      apiFetch<AnalyticsMenuSnapshot>(
+        buildAnalyticsPath("/api/analytics/products", storeId, preset, from, to)
+      ),
+    enabled: tab === "menu",
+  })
 
   const tabs: Array<{ id: TabId; label: string }> = [
     { id: "overview", label: "Vue d'ensemble" },
@@ -89,6 +98,7 @@ export function AnalyticsModulesPanel({
     { id: "fulfillment", label: "Exécution" },
     { id: "cancellations", label: "Annulations" },
     { id: "peak-hours", label: "Heures de pointe" },
+    { id: "menu", label: "Menu produits" },
   ]
 
   return (
@@ -159,6 +169,21 @@ export function AnalyticsModulesPanel({
               <span className="font-medium">{row.orders} commandes</span>
             </div>
           ))}
+        </div>
+      ) : null}
+
+      {tab === "menu" ? (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-stripe-heading">Produits les plus commandés</h3>
+          <div className="space-y-2 text-sm">
+            {(menu.data?.popular.topItems ?? []).map((row) => (
+              <div key={row.productId} className="flex items-center justify-between rounded-md border border-stripe-border px-3 py-2">
+                <span className="truncate pe-3">{row.name}</span>
+                <span className="font-medium">{row.quantitySold} cmd • {formatPrice(row.revenue)}</span>
+              </div>
+            ))}
+            {menu.isLoading ? <p className="text-xs text-stripe-body">Chargement...</p> : null}
+          </div>
         </div>
       ) : null}
     </section>
