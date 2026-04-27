@@ -74,7 +74,7 @@ export function DashboardTableCard({
 }) {
   return (
     <Card className={cn(dashboardCardShell, className)}>
-      <CardContent className="p-0 sm:p-0">{children}</CardContent>
+      <CardContent className="min-w-0 overflow-hidden p-0 sm:p-0">{children}</CardContent>
     </Card>
   )
 }

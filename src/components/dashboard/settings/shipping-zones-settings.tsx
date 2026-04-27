@@ -76,7 +76,70 @@ export function ShippingZonesSettings({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto">
+      <div className="space-y-2 md:hidden">
+        {zones.length === 0 ? (
+          <div className="rounded-md border border-stripe-border bg-stripe-canvas/40 px-3 py-6 text-center text-sm text-stripe-body">
+            Aucune zone. Ajoutez au moins une wilaya pour la livraison au checkout.
+          </div>
+        ) : (
+          zones.map((z) => (
+            <article
+              key={z.id}
+              className="rounded-md border border-stripe-border bg-white px-3 py-3 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-stripe-heading">{z.wilaya.name_fr}</p>
+                  <p className="text-xs text-stripe-body">
+                    Délai: {formatDelayLabel(z.estimated_days_min, z.estimated_days_max)}
+                  </p>
+                  <p className="text-xs font-medium tabular-nums-stripe text-stripe-heading">
+                    {formatPrice(z.price_mad)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-10 w-10 text-stripe-label"
+                    aria-label={`Modifier ${z.wilaya.name_fr}`}
+                    onClick={() => openEdit(z)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-10 w-10 text-red-600 hover:text-red-700"
+                    aria-label={`Supprimer ${z.wilaya.name_fr}`}
+                    onClick={async () => {
+                      if (!window.confirm(`Supprimer la zone « ${z.wilaya.name_fr} » ?`)) return
+                      try {
+                        await apiFetch(`/api/stores/${storeId}/shipping-zones/${z.id}`, {
+                          method: "DELETE",
+                          redirectOnUnauthorized: true,
+                        })
+                        toast.success("Zone supprimée.")
+                        router.refresh()
+                      } catch (e) {
+                        toast.error(
+                          e instanceof ApiClientError ? e.message : "Suppression impossible."
+                        )
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
         <Table>
           <TableHeader>
             <TableRow className={dashboardTableHeaderRowClass}>

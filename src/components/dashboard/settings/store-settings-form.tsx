@@ -111,7 +111,7 @@ function SettingsSection({
         <h2 className="text-base font-semibold text-stripe-heading">{title}</h2>
         <p className="text-sm text-stripe-body">{description}</p>
       </div>
-      <div className="rounded-md border border-stripe-border bg-white p-4 shadow-stripe-card sm:p-5">
+      <div className="min-w-0 overflow-hidden rounded-md border border-stripe-border bg-white p-4 shadow-stripe-card sm:p-5">
         {children}
       </div>
     </section>
@@ -422,11 +422,13 @@ export function StoreSettingsForm({ initial }: { initial: StoreSettingsInitialDa
         title="Zones de livraison"
         description="Configurez vos tarifs d’expédition par wilaya (région)."
       >
-        <ShippingZonesSettings
-          storeId={storeId}
-          zones={initial.shipping_zones}
-          wilayas={initial.wilayas}
-        />
+        <div className="min-w-0">
+          <ShippingZonesSettings
+            storeId={storeId}
+            zones={initial.shipping_zones}
+            wilayas={initial.wilayas}
+          />
+        </div>
       </SettingsSection>
 
       <div className="sticky bottom-0 z-30 rounded-md border border-stripe-border bg-white/95 p-3 shadow-[0_-4px_12px_rgba(6,27,49,0.06)] backdrop-blur-sm sm:p-4">

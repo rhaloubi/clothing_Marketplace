@@ -78,8 +78,8 @@ export function ProfileSubscriptionSidebar({
   const otherPlans = plans.filter((p) => p.name !== current)
 
   return (
-    <div className="space-y-4">
-      <section className="rounded-md border border-stripe-border bg-white p-4 shadow-stripe-card sm:p-5">
+    <div className="min-w-0 space-y-4">
+      <section className="min-w-0 overflow-hidden rounded-md border border-stripe-border bg-white p-4 shadow-stripe-card sm:p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
           <p className="text-xs font-medium uppercase tracking-wide text-stripe-label">
             Mon abonnement

@@ -21,7 +21,10 @@ export function ProfileSecurityCard() {
         </div>
         <Link
           href="/forgot-password"
-          className={cn(dashboardLinkOutline, "h-11 min-h-11 shrink-0 px-4 text-center")}
+          className={cn(
+            dashboardLinkOutline,
+            "h-11 min-h-11 w-full justify-center px-4 text-center sm:w-auto sm:shrink-0"
+          )}
         >
           Changer le mot de passe
         </Link>

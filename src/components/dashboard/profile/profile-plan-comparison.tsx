@@ -103,7 +103,7 @@ export function ProfilePlanComparison({ plans }: { plans: Plan[] }) {
   )
 
   return (
-    <section className="rounded-md border border-stripe-border bg-white p-4 shadow-stripe-card sm:p-5">
+    <section className="min-w-0 overflow-hidden rounded-md border border-stripe-border bg-white p-4 shadow-stripe-card sm:p-5">
       <div className="mb-4 flex items-center gap-2">
         <div className="flex h-9 w-9 items-center justify-center rounded-md bg-stripe-purple-muted/40 text-stripe-purple">
           <CreditCard className="h-4 w-4" aria-hidden />
@@ -112,8 +112,8 @@ export function ProfilePlanComparison({ plans }: { plans: Plan[] }) {
           Comparer les formules
         </h2>
       </div>
-      <div className="overflow-x-auto">
-        <Table>
+      <div className="w-full overflow-x-auto">
+        <Table className="min-w-[640px]">
           <TableHeader>
             <TableRow className={dashboardTableHeaderRowClass}>
               <TableHead className={dashboardTableHeadClass}>
@@ -148,6 +148,9 @@ export function ProfilePlanComparison({ plans }: { plans: Plan[] }) {
           </TableBody>
         </Table>
       </div>
+      <p className="mt-2 text-xs text-stripe-body md:hidden">
+        Faites glisser horizontalement pour voir toutes les formules.
+      </p>
     </section>
   )
 }

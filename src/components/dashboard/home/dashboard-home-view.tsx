@@ -255,8 +255,8 @@ export function DashboardHomeView({
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="rounded-md border border-stripe-border bg-white shadow-stripe-card ring-0 lg:col-span-1">
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+        <Card className="min-w-0 rounded-md border border-stripe-border bg-white shadow-stripe-card ring-0 lg:col-span-1">
           <CardContent className="space-y-3 p-4 sm:p-5">
             <div className="flex items-center gap-2">
               <Eye className="h-4 w-4 text-stripe-purple" aria-hidden />
@@ -290,9 +290,9 @@ export function DashboardHomeView({
           </CardContent>
         </Card>
 
-        <div className="space-y-4 lg:col-span-2">
-          <DashboardTableCard>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stripe-border px-4 py-3 sm:px-5">
+        <div className="min-w-0 space-y-4 lg:col-span-2">
+          <DashboardTableCard className="min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stripe-border px-3 py-3 sm:px-5">
               <h2 className="text-base font-semibold text-stripe-heading">
                 Dernières commandes
               </h2>
@@ -308,8 +308,8 @@ export function DashboardHomeView({
                 Aucune commande pour le moment.
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
+              <div className="w-full overflow-x-auto">
+                <Table className="min-w-[620px]">
                   <TableHeader>
                     <TableRow className={dashboardTableHeaderRowClass}>
                       <TableHead className={dashboardTableHeadClass}>Commande</TableHead>
@@ -358,7 +358,7 @@ export function DashboardHomeView({
             )}
           </DashboardTableCard>
 
-          <Card className="rounded-md border border-stripe-border bg-white shadow-stripe-card ring-0">
+          <Card className="min-w-0 rounded-md border border-stripe-border bg-white shadow-stripe-card ring-0">
             <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-amber-50 text-amber-700">
@@ -377,7 +377,10 @@ export function DashboardHomeView({
               </div>
               <Link
                 href={`/dashboard/products?store=${storeId}&stock=low`}
-                className={cn(dashboardLinkPrimary, "shrink-0 self-start sm:self-center")}
+                className={cn(
+                  dashboardLinkPrimary,
+                  "w-full justify-center self-stretch sm:w-auto sm:shrink-0 sm:self-center"
+                )}
               >
                 Ouvrir l’inventaire
               </Link>

@@ -114,27 +114,29 @@ export default async function ProfilePage({
   }
 
   return (
-    <div className="space-y-6 pb-8 sm:space-y-8">
+    <div className="space-y-5 overflow-x-hidden pb-8 sm:space-y-8">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-stripe-heading sm:text-3xl">
+        <h1 className="text-xl font-semibold tracking-tight text-stripe-heading sm:text-3xl">
           Profil et abonnement
         </h1>
-        <p className="text-sm text-stripe-body">
+        <p className="max-w-2xl text-xs text-stripe-body sm:text-sm">
           Gérez les détails de votre compte marchand et suivez votre formule.
         </p>
       </div>
 
-      <div className="grid gap-6 lg:gap-8 xl:grid-cols-[1fr_minmax(280px,340px)] xl:items-start">
-        <div className="space-y-6">
+      <div className="grid gap-4 sm:gap-6 lg:gap-8 xl:grid-cols-[1fr_minmax(280px,340px)] xl:items-start">
+        <div className="min-w-0 space-y-4 sm:space-y-6">
           <ProfilePersonalForm email={data.email} profile={data.profile} />
           <ProfileSecurityCard />
           <ProfilePlanComparison plans={data.plans} />
         </div>
-        <ProfileSubscriptionSidebar
-          storeId={storeId}
-          subscription={data.subscription}
-          plans={data.plans}
-        />
+        <div className="min-w-0">
+          <ProfileSubscriptionSidebar
+            storeId={storeId}
+            subscription={data.subscription}
+            plans={data.plans}
+          />
+        </div>
       </div>
     </div>
   )
