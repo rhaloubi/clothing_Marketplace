@@ -42,7 +42,22 @@ async function fetchOverviewDailyRpc(
   storeId: string,
   window: AnalyticsDateWindow
 ): Promise<OverviewDailyRowRpc[]> {
-  return runAnalyticsRpc<OverviewDailyRowRpc>(supabase, "analytics_overview_daily_agg", {
+  const countRows = await runAnalyticsRpc<{ rows_count: number }>(
+    supabase,
+    "analytics_daily_orders_rows_count",
+    {
+      p_store_id: storeId,
+      p_from: window.start_date_key,
+      p_to: window.end_date_key_inclusive,
+    }
+  )
+  const count = Number(countRows[0]?.rows_count ?? 0)
+
+  const fn = count > 0
+    ? "analytics_overview_daily_from_daily"
+    : "analytics_overview_daily_agg"
+
+  return runAnalyticsRpc<OverviewDailyRowRpc>(supabase, fn, {
     p_store_id: storeId,
     p_from: window.from_inclusive_iso,
     p_to: window.to_exclusive_iso,

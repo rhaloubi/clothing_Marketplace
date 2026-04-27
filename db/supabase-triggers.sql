@@ -184,3 +184,105 @@ $$;
 
 REVOKE ALL ON FUNCTION public.next_store_order_number(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.next_store_order_number(uuid) TO service_role;
+
+-- ─── Analytics incremental aggregation (hybrid: direct + outbox) ─────────────
+
+CREATE OR REPLACE FUNCTION public.analytics_events_direct_aggregate()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_date date;
+BEGIN
+  v_date := public.casablanca_date_key(NEW.created_at);
+  PERFORM public.analytics_upsert_event_daily(NEW.store_id, v_date, NEW.event_type, 1);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS analytics_events_direct_aggregate_tg ON public.analytics_events;
+CREATE TRIGGER analytics_events_direct_aggregate_tg
+  AFTER INSERT ON public.analytics_events
+  FOR EACH ROW
+  EXECUTE FUNCTION public.analytics_events_direct_aggregate();
+
+CREATE OR REPLACE FUNCTION public.analytics_orders_enqueue_jobs()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_new_date date;
+  v_old_date date;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    v_new_date := public.casablanca_date_key(NEW.created_at);
+    PERFORM public.analytics_enqueue_job(NEW.store_id, v_new_date, 'orders');
+    PERFORM public.analytics_enqueue_job(NEW.store_id, v_new_date, 'products');
+    RETURN NEW;
+  ELSIF TG_OP = 'UPDATE' THEN
+    v_new_date := public.casablanca_date_key(NEW.created_at);
+    v_old_date := public.casablanca_date_key(OLD.created_at);
+
+    PERFORM public.analytics_enqueue_job(NEW.store_id, v_new_date, 'orders');
+    PERFORM public.analytics_enqueue_job(NEW.store_id, v_new_date, 'products');
+    IF v_old_date <> v_new_date OR OLD.store_id <> NEW.store_id THEN
+      PERFORM public.analytics_enqueue_job(OLD.store_id, v_old_date, 'orders');
+      PERFORM public.analytics_enqueue_job(OLD.store_id, v_old_date, 'products');
+    END IF;
+    RETURN NEW;
+  ELSIF TG_OP = 'DELETE' THEN
+    v_old_date := public.casablanca_date_key(OLD.created_at);
+    PERFORM public.analytics_enqueue_job(OLD.store_id, v_old_date, 'orders');
+    PERFORM public.analytics_enqueue_job(OLD.store_id, v_old_date, 'products');
+    RETURN OLD;
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS analytics_orders_enqueue_jobs_tg ON public.orders;
+CREATE TRIGGER analytics_orders_enqueue_jobs_tg
+  AFTER INSERT OR UPDATE OR DELETE ON public.orders
+  FOR EACH ROW
+  EXECUTE FUNCTION public.analytics_orders_enqueue_jobs();
+
+CREATE OR REPLACE FUNCTION public.analytics_order_items_enqueue_products()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_store_id uuid;
+  v_created timestamptz;
+  v_date date;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    SELECT o.store_id, o.created_at INTO v_store_id, v_created
+    FROM public.orders o
+    WHERE o.id = OLD.order_id;
+  ELSE
+    SELECT o.store_id, o.created_at INTO v_store_id, v_created
+    FROM public.orders o
+    WHERE o.id = NEW.order_id;
+  END IF;
+
+  IF v_store_id IS NULL THEN
+    RETURN COALESCE(NEW, OLD);
+  END IF;
+
+  v_date := public.casablanca_date_key(v_created);
+  PERFORM public.analytics_enqueue_job(v_store_id, v_date, 'products');
+  RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+DROP TRIGGER IF EXISTS analytics_order_items_enqueue_products_tg ON public.order_items;
+CREATE TRIGGER analytics_order_items_enqueue_products_tg
+  AFTER INSERT OR UPDATE OR DELETE ON public.order_items
+  FOR EACH ROW
+  EXECUTE FUNCTION public.analytics_order_items_enqueue_products();

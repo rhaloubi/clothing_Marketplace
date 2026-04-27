@@ -109,9 +109,26 @@ async function fetchOrdersForRange(
   fromInclusiveIso: string,
   toExclusiveIso: string
 ): Promise<Array<{ date_key: string; revenue_mad: number; revenue_orders: number }>> {
+  const fromDate = fromInclusiveIso.slice(0, 10)
+  const toDate = new Date(new Date(toExclusiveIso).getTime() - 1000).toISOString().slice(0, 10)
+  const countRows = await runAnalyticsRpc<{ rows_count: number }>(
+    supabase,
+    "analytics_daily_orders_rows_count",
+    {
+      p_store_id: storeId,
+      p_from: fromDate,
+      p_to: toDate,
+    }
+  )
+  const count = Number(countRows[0]?.rows_count ?? 0)
+
+  const fn = count > 0
+    ? "analytics_overview_daily_from_daily"
+    : "analytics_overview_daily_agg"
+
   return runAnalyticsRpc<{ date_key: string; revenue_mad: number; revenue_orders: number }>(
     supabase,
-    "analytics_overview_daily_agg",
+    fn,
     {
     p_store_id: storeId,
     p_from: fromInclusiveIso,

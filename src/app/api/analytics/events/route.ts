@@ -6,7 +6,7 @@ import { trackAnalyticsEventSchema } from "@/lib/validations"
 /**
  * Fire-and-forget storefront tracking (anon — RLS allows insert for active stores).
  */
-export const POST = withRateLimit("auth")(async (req: NextRequest, _ctx: { params: Promise<Record<string, string>> }) => {
+export const POST = withRateLimit("analytics")(async (req: NextRequest, _ctx: { params: Promise<Record<string, string>> }) => {
   const body = (await req.json()) as unknown
   const parsed = trackAnalyticsEventSchema.safeParse(body)
   if (!parsed.success) {

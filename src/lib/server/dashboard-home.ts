@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/database.types"
 import type { OrderStatus } from "@/types"
 import { orderCountsAsRevenue } from "@/lib/server/analytics-query"
+import { runAnalyticsRpc } from "@/lib/server/analytics-rpc"
 import { fetchDashboardProductList } from "@/lib/server/products-dashboard-list"
 import {
   getCasablancaDayBoundsUtc,
@@ -140,6 +141,25 @@ async function countEvent(
   startIso: string,
   endExclusiveIso: string
 ): Promise<number> {
+  const startDate = startIso.slice(0, 10)
+  const endDate = new Date(new Date(endExclusiveIso).getTime() - 1000).toISOString().slice(0, 10)
+  try {
+    const rows = await runAnalyticsRpc<{ event_count: number }>(
+      supabase,
+      "analytics_daily_events_sum",
+      {
+        p_store_id: storeId,
+        p_event_type: eventType,
+        p_from: startDate,
+        p_to: endDate,
+      }
+    )
+    const value = Number(rows[0]?.event_count ?? 0)
+    if (value > 0) return value
+  } catch {
+    // fallback to raw table count below
+  }
+
   const { count, error } = await supabase
     .from("analytics_events")
     .select("id", { count: "exact", head: true })
