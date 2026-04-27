@@ -1,10 +1,17 @@
 import { redirect, notFound } from "next/navigation"
+import { Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { parseStoreId } from "@/lib/dashboard"
 import {
   AnalyticsCompareView,
   AnalyticsUpgradeRequired,
 } from "@/components/dashboard/analytics/analytics-compare-view"
+import {
+  DashboardHeaderSkeleton,
+  DashboardKpiGridSkeleton,
+  DashboardSpinnerRow,
+  DashboardTableSkeleton,
+} from "@/components/dashboard/dashboard-loaders"
 import { fetchAnalyticsRevenueCompareSnapshot } from "@/lib/server/analytics-compare"
 import type { Database } from "@/types/database.types"
 import type { AnalyticsComparePreset } from "@/types"
@@ -66,11 +73,35 @@ export default async function AnalyticsPage({
     redirect("/dashboard")
   }
 
+  return (
+    <Suspense fallback={<AnalyticsDynamicFallback />}>
+      <AnalyticsDynamic
+        storeId={storeId}
+        preset={preset}
+        from={parsedWindow.data.from}
+        to={parsedWindow.data.to}
+      />
+    </Suspense>
+  )
+}
+
+async function AnalyticsDynamic({
+  storeId,
+  preset,
+  from,
+  to,
+}: {
+  storeId: string
+  preset: AnalyticsComparePreset
+  from?: string
+  to?: string
+}) {
+  const supabase = await createClient()
   let snapshot = null as Awaited<ReturnType<typeof fetchAnalyticsRevenueCompareSnapshot>> | null
   try {
     snapshot = await fetchAnalyticsRevenueCompareSnapshot(supabase, storeId, preset, {
-      from: parsedWindow.data.from,
-      to: parsedWindow.data.to,
+      from,
+      to,
     })
   } catch {
     snapshot = null
@@ -91,8 +122,19 @@ export default async function AnalyticsPage({
       storeId={storeId}
       snapshot={snapshot}
       preset={preset}
-      from={parsedWindow.data.from}
-      to={parsedWindow.data.to}
+      from={from}
+      to={to}
     />
+  )
+}
+
+function AnalyticsDynamicFallback() {
+  return (
+    <div className="space-y-6 pb-10 sm:space-y-8">
+      <DashboardHeaderSkeleton />
+      <DashboardKpiGridSkeleton count={4} />
+      <DashboardTableSkeleton rows={6} cols={4} titleWidth="w-56" />
+      <DashboardSpinnerRow label="Chargement des modules analytiques…" />
+    </div>
   )
 }

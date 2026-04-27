@@ -1,9 +1,16 @@
 import { redirect } from "next/navigation"
+import { Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { parseStoreId } from "@/lib/dashboard"
 import { PlusCircle, Store } from "lucide-react"
 import Link from "next/link"
 import { DashboardErrorCard } from "@/components/dashboard/dashboard-page"
+import {
+  DashboardHeaderSkeleton,
+  DashboardKpiGridSkeleton,
+  DashboardSpinnerRow,
+  DashboardTableSkeleton,
+} from "@/components/dashboard/dashboard-loaders"
 import { DashboardHomeView } from "@/components/dashboard/home/dashboard-home-view"
 import { fetchDashboardHomeSnapshot } from "@/lib/server/dashboard-home"
 
@@ -43,20 +50,36 @@ export default async function DashboardPage({
     redirect("/dashboard")
   }
 
-  let snapshot = null as Awaited<ReturnType<typeof fetchDashboardHomeSnapshot>> | null
-  let loadError = false
-  try {
-    snapshot = await fetchDashboardHomeSnapshot(supabase, storeId)
-  } catch {
-    loadError = true
-  }
+  return (
+    <Suspense fallback={<DashboardHomeDynamicFallback />}>
+      <DashboardHomeDynamic storeId={storeId} storeName={store.name} />
+    </Suspense>
+  )
+}
 
-  if (loadError || !snapshot) {
+async function DashboardHomeDynamic({
+  storeId,
+  storeName,
+}: {
+  storeId: string
+  storeName: string
+}) {
+  const supabase = await createClient()
+  try {
+    const snapshot = await fetchDashboardHomeSnapshot(supabase, storeId)
+    return (
+      <DashboardHomeView
+        storeId={storeId}
+        storeName={storeName}
+        snapshot={snapshot}
+      />
+    )
+  } catch {
     return (
       <div className="space-y-6 sm:space-y-8">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-stripe-heading sm:text-3xl">
-            {store.name}
+            {storeName}
           </h1>
           <p className="text-sm text-stripe-body">Vue d&apos;ensemble</p>
         </div>
@@ -67,13 +90,16 @@ export default async function DashboardPage({
       </div>
     )
   }
+}
 
+function DashboardHomeDynamicFallback() {
   return (
-    <DashboardHomeView
-      storeId={storeId}
-      storeName={store.name}
-      snapshot={snapshot}
-    />
+    <div className="space-y-6 pb-10 sm:space-y-8">
+      <DashboardHeaderSkeleton />
+      <DashboardKpiGridSkeleton />
+      <DashboardTableSkeleton rows={4} cols={5} titleWidth="w-40" />
+      <DashboardSpinnerRow label="Chargement des sections du tableau de bord…" />
+    </div>
   )
 }
 

@@ -1,10 +1,16 @@
 import { notFound } from "next/navigation"
+import { Suspense } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { parseStoreId } from "@/lib/dashboard"
 import { ProfilePersonalForm } from "@/components/dashboard/profile/profile-personal-form"
 import { ProfilePlanComparison } from "@/components/dashboard/profile/profile-plan-comparison"
 import { ProfileSecurityCard } from "@/components/dashboard/profile/profile-security-card"
 import { ProfileSubscriptionSidebar } from "@/components/dashboard/profile/profile-subscription-sidebar"
+import {
+  DashboardFormSectionSkeleton,
+  DashboardHeaderSkeleton,
+  DashboardTableSkeleton,
+} from "@/components/dashboard/dashboard-loaders"
 import type { Database } from "@/types/database.types"
 import type {
   MerchantProfile,
@@ -61,20 +67,38 @@ export default async function ProfilePage({
 
   if (!user?.email) notFound()
 
+  return (
+    <div className="space-y-5 overflow-x-hidden pb-8 sm:space-y-8">
+      <Suspense fallback={<ProfileDynamicFallback />}>
+        <ProfileDynamic userId={user.id} userEmail={user.email} storeId={storeId} />
+      </Suspense>
+    </div>
+  )
+}
+
+async function ProfileDynamic({
+  userId,
+  userEmail,
+  storeId,
+}: {
+  userId: string
+  userEmail: string
+  storeId: string | null
+}) {
+  const supabase = await createClient()
+
   const { data: profileRow, error: profileErr } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single()
-
   if (profileErr || !profileRow) notFound()
 
   const { data: subRow, error: subErr } = await supabase
     .from("subscriptions")
     .select("*, plans(*)")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .single()
-
   if (subErr || !subRow) notFound()
 
   const planJoined = subRow.plans as PlanRow | null
@@ -84,7 +108,6 @@ export default async function ProfilePage({
     .from("plans")
     .select("*")
     .order("price_mad", { ascending: true })
-
   if (plansErr || !planRows?.length) notFound()
 
   const profile: MerchantProfile = {
@@ -107,14 +130,14 @@ export default async function ProfilePage({
   }
 
   const data: ProfilePageData = {
-    email: user.email,
+    email: userEmail,
     profile,
     subscription,
     plans: planRows.map(toPlan),
   }
 
   return (
-    <div className="space-y-5 overflow-x-hidden pb-8 sm:space-y-8">
+    <>
       <div className="space-y-1">
         <h1 className="text-xl font-semibold tracking-tight text-stripe-heading sm:text-3xl">
           Profil et abonnement
@@ -138,6 +161,24 @@ export default async function ProfilePage({
           />
         </div>
       </div>
-    </div>
+    </>
+  )
+}
+
+function ProfileDynamicFallback() {
+  return (
+    <>
+      <DashboardHeaderSkeleton />
+      <div className="grid gap-4 sm:gap-6 lg:gap-8 xl:grid-cols-[1fr_minmax(280px,340px)] xl:items-start">
+        <div className="min-w-0 space-y-4 sm:space-y-6">
+          <DashboardFormSectionSkeleton fields={3} />
+          <DashboardFormSectionSkeleton fields={2} />
+          <DashboardTableSkeleton rows={7} cols={4} titleWidth="w-44" />
+        </div>
+        <div className="min-w-0">
+          <DashboardFormSectionSkeleton fields={4} />
+        </div>
+      </div>
+    </>
   )
 }

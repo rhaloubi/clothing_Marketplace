@@ -1,4 +1,11 @@
 import { notFound, redirect } from "next/navigation"
+import { Suspense } from "react"
+import {
+  DashboardFormSectionSkeleton,
+  DashboardHeaderSkeleton,
+  DashboardSpinnerRow,
+  DashboardTableSkeleton,
+} from "@/components/dashboard/dashboard-loaders"
 import { StoreSettingsForm } from "@/components/dashboard/settings/store-settings-form"
 import { parseStoreId } from "@/lib/dashboard"
 import { createClient } from "@/lib/supabase/server"
@@ -17,12 +24,23 @@ export default async function SettingsPage({
 
   const supabase = await createClient()
 
+  return (
+    <div className="space-y-8 pb-20 sm:space-y-10">
+      <Suspense fallback={<SettingsDynamicFallback />}>
+        <SettingsDynamic storeId={storeId} />
+      </Suspense>
+    </div>
+  )
+}
+
+async function SettingsDynamic({ storeId }: { storeId: string }) {
+  const supabase = await createClient()
+
   const { data: store, error: storeErr } = await supabase
     .from("stores")
     .select("id, name, slug, logo_url, banner_url, whatsapp_number")
     .eq("id", storeId)
     .single()
-
   if (storeErr || !store) notFound()
 
   const { data: zoneRows, error: zErr } = await supabase
@@ -35,7 +53,6 @@ export default async function SettingsPage({
     .from("wilayas")
     .select("id, name_fr, name_ar, code")
     .order("id", { ascending: true })
-
   if (wErr || !wilayaRows) notFound()
 
   const shipping_zones: ShippingZoneWithWilaya[] = (zErr ? [] : (zoneRows ?? [])).flatMap((row) => {
@@ -75,7 +92,7 @@ export default async function SettingsPage({
   }
 
   return (
-    <div className="space-y-8 pb-20 sm:space-y-10">
+    <>
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-stripe-heading sm:text-3xl">
           Paramètres de la boutique
@@ -84,8 +101,19 @@ export default async function SettingsPage({
           Identité, WhatsApp et livraison pour cette boutique.
         </p>
       </div>
-
       <StoreSettingsForm initial={initial} />
-    </div>
+    </>
+  )
+}
+
+function SettingsDynamicFallback() {
+  return (
+    <>
+      <DashboardHeaderSkeleton />
+      <DashboardFormSectionSkeleton fields={5} />
+      <DashboardFormSectionSkeleton fields={3} />
+      <DashboardTableSkeleton rows={6} cols={4} titleWidth="w-44" />
+      <DashboardSpinnerRow label="Chargement des paramètres…" />
+    </>
   )
 }
