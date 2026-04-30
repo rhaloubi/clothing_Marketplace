@@ -1,5 +1,6 @@
 import Link from "next/link"
 import Image from "next/image"
+import { Suspense } from "react"
 import { LoginForm } from "./login-form"
 
 export const metadata = {
@@ -26,7 +27,9 @@ export default function LoginPage() {
 
           {/* Login Card */}
           <div className="liquid-card liquid-shine rounded-lg p-8">
-            <LoginForm />
+            <Suspense fallback={null}>
+              <LoginForm />
+            </Suspense>
           </div>
 
           {/* Footer Link */}
